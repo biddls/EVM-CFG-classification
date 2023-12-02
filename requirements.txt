@@ -1,1 +1,7 @@
-torch
+tqdm
+matplotlib
+networkx
+scipy
+flake8
+pytest
+pytest-cov
