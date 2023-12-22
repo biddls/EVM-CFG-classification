@@ -8,9 +8,9 @@ class CFG_Reader:
     parsedOpcodes: list[list[str]] = []
     graph: nx.DiGraph | None = None
 
-    def __init__(self, genGraph: bool = False) -> None:
+    def __init__(self, path: str, genGraph: bool = False) -> None:
         # Load JSON data from file
-        with open("./src/ControlFlowGraphs/file.json", "r") as json_file:
+        with open(path, "r") as json_file:
             data = json.load(json_file)
 
         if genGraph:
@@ -59,5 +59,6 @@ class CFG_Reader:
 
 
 if __name__ == "__main__":
-    cfg = CFG_Reader()
+    path = "./src/ControlFlowGraphs/file.json"
+    cfg = CFG_Reader(path)
     print(cfg.parsedOpcodes[0])
