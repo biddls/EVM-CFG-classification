@@ -2,6 +2,7 @@ import json
 import networkx as nx
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+from glob import glob
 
 
 class CFG_Reader:
@@ -58,7 +59,25 @@ class CFG_Reader:
         plt.show()
 
 
+class OpCodeCollation:
+    def __init__(self) -> None:
+        self.files = list(glob("./src/ControlFlowGraphs/evmOut/*.json"))
+        self.collatedDict: dict[str, list[list[str]]] = {}
+
+    def collate(self) -> None:
+        for file in tqdm(self.files):
+            cfg = CFG_Reader(file)
+            self.collatedDict[file] = cfg.parsedOpcodes
+    
+    def wrtieToFile(self) -> None:
+        with open("./src/ControlFlowGraphs/collated.json", "w") as outfile:
+            json.dump(self.collatedDict, outfile, indent=4)
+
+
 if __name__ == "__main__":
-    path = "./src/ControlFlowGraphs/file.json"
-    cfg = CFG_Reader(path)
-    print(cfg.parsedOpcodes[0])
+    # path = "./src/ControlFlowGraphs/file.json"
+    # cfg = CFG_Reader(path)
+    # print(cfg.parsedOpcodes[0])
+    collator = OpCodeCollation()
+    collator.collate()
+    collator.wrtieToFile()
