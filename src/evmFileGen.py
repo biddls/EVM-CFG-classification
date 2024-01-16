@@ -4,6 +4,9 @@ from tqdm import tqdm
 
 
 class ByteCodeIO:
+    """
+    Reads the bytecode from the database and writes it to a file
+    """
     def __init__(self):
         self.sqliteConnection = sqlite3.connect("contStore.db")
         self.cursor = self.sqliteConnection.cursor()

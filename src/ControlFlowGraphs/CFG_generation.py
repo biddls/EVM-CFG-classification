@@ -1,3 +1,6 @@
+"""
+Runs the CFG generation tool EtherSolve on all the EVM files in the folder
+"""
 import os
 from glob import glob
 from tqdm import tqdm
