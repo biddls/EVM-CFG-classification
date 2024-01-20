@@ -70,6 +70,7 @@ class CFG_Reader:
     def __repr__(self) -> str:
         return self.path
 
+
 if __name__ == "__main__":
     # Get all the JSON files in the directory
     files = glob("./src/ControlFlowGraphs/evmOut/*.json")

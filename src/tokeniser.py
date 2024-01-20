@@ -1,13 +1,10 @@
-from calendar import c
-from typing import Any, Generator
-
-from numpy import average, median
+from typing import Generator
+import numpy as np
 from CFG_reader import CFG_Reader
 from glob import glob
 from dataclasses import dataclass, field
-from avaliableOpCodes import AvaliableOpCodes
+from avaliableOpCodes import AvaliableOpCodes, specialTokens
 import collections
-from tqdm import tqdm
 
 
 @dataclass
@@ -33,7 +30,7 @@ class CFG_Loader:
         addrs = list(self.avaliable_cfgs.keys())
         for addr in addrs:
             yield self[addr]
-    
+
     def __len__(self) -> int:
         return len(self.avaliable_cfgs.keys())
 
@@ -44,27 +41,23 @@ class Tokeniser:
     Tokeniseation:
     OPCODES
     values:
-    <ZERO>
-    <MAX>
-    <SMALL_NUMBER>
-    <MEDIUM_NUMBER>
-    <LARGE_NUMBER>
-    <EXTA_LARGE_NUMBER>
-    <NUMBER_1-20>
-    <ADDRESS>
     <ZERO_ADDRESS>
     <MAX_ADDRESS>
+    <ADDRESS>
+    <ZERO>
+    <MAX>
+    <NUMBER_1-20>
     """
     addrLen = 40
     ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
     MAX_ADDRESS = "0xffffffffffffffffffffffffffffffffffffffff"
 
     @staticmethod
-    def tokenise(cfg: CFG_Reader) ->Any:
+    def tokenise(cfg: CFG_Reader) -> list[str | tuple[str, str]]:
         """
         Tokenises the opcodes in the CFG
         """
-        tokens: list[str|tuple[str, str]] = list()
+        tokens: list[str | tuple[str, str]] = list()
         # splits the opcodes into tokens
         for node in cfg.parsedOpcodes[:-1]:
             for opcode in node:
@@ -89,10 +82,6 @@ class Tokeniser:
         Need to check for the following and assign accordingly:
             <ZERO>
             <MAX>
-            <SMALL_NUMBER>
-            <MEDIUM_NUMBER>
-            <LARGE_NUMBER>
-            <EXTA_LARGE_NUMBER>
             <NUMBER_1-20>
             <ADDRESS>
             <ZERO_ADDRESS>
@@ -104,7 +93,8 @@ class Tokeniser:
         addrFreq = dict()
         addrFreq = {
             key: value
-            for key, value in frequency.items() if len(key[2:]) == Tokeniser.addrLen
+            for key, value in frequency.items()
+            if len(key[2:]) == Tokeniser.addrLen
         }
         for key in addrFreq:
             del frequency[key]
@@ -120,48 +110,85 @@ class Tokeniser:
 
         # <ADDRESS>
         if addrFreq != {}:
-            for key, in addrFreq.keys():
+            for key in addrFreq.keys():
                 encodings[key] = "<ADDRESS>"
 
-        for key, value in sorted(
-            frequency.items(), key=lambda item: item[1], reverse=True
-        ):
+        numbersAssigned = 0
+
+        for key in sorted(
+            frequency.keys(), key=lambda item: item[1], reverse=True):
+            shortKey = key[2:]
             # <ZERO>
-            if int(key[2:], 16) == 0:
+            if set(shortKey) == {"0"}:
                 encodings[key] = "<ZERO>"
                 del frequency[key]
             # <MAX>
-            elif set(key[2:]) == {"f"}:
+            elif set(shortKey) == {"f"}:
                 encodings[key] = "<MAX>"
                 del frequency[key]
 
             # Checks for numbers
             # <NUMBER_1-20>
-            
+            elif numbersAssigned < 20:
+                encodings[key] = f"<NUMBER_{numbersAssigned}>"
+                del frequency[key]
+                numbersAssigned += 1
 
-            # left over
-            # <SMALL_NUMBER>
-            elif len(key[2:]) <= 4:
-                encodings[key] = "<SMALL_NUMBER>"
-            # <MEDIUM_NUMBER>
-            elif len(key[2:]) <= 8:
-                encodings[key] = "<MEDIUM_NUMBER>"
-            # <LARGE_NUMBER>
-            elif len(key[2:]) <= 12:
-                encodings[key] = "<LARGE_NUMBER>"
-            # <EXTA_LARGE_NUMBER>
-            elif len(key[2:]) > 12:
-                encodings[key] = "<EXTA_LARGE_NUMBER>"
+        # Replaces the tokens with the encodings
+        for i, token in enumerate(tokens):
+            if isinstance(token, tuple):
+                if token[1] in encodings:
+                    tokens[i] = (token[0], encodings[token[1]])
+                else:
+                    tokens[i] = token[0]
 
         return tokens
 
+    @staticmethod
+    def oneHotEncode(tokens: list[str | tuple[str, str]]) -> list[int|tuple[int, int]]:
+        """
+        One hot encodes the tokens into their index
+        """
+        # print(AvaliableOpCodes)
+        vectors = list()
+        for token in tokens:
+            if isinstance(token, tuple):
+                # convert to more fancy vector
+                vectors.append(
+                    (AvaliableOpCodes[token[0]], specialTokens[token[1]]))
+            else:
+                vectors.append(AvaliableOpCodes[token])
+
+        return vectors
+
+    @staticmethod
+    def vectorise(tokens: list[int | tuple[int, int]]) -> np.array:
+        """
+        Vectorises the tokens into a 2D numpy array
+        """
+        # define the shape of the array
+        width = len(AvaliableOpCodes) + len(specialTokens)
+        height = len(tokens)
+        # create the array of 0's
+        vector = np.zeros((height, width), dtype=bool)
+
+        for i, token in enumerate(tokens):
+            if isinstance(token, tuple):
+                # convert to more fancy vector
+                vector[i, token[0]] = True
+                vector[i, len(AvaliableOpCodes) + token[1]] = True
+            else:
+                vector[i, token] = True
+
+        return vector
+
 
 if __name__ == "__main__":
+    from timeit import repeat
     loader = CFG_Loader()
     tokens = list()
-    maxAddrs: dict[CFG_Reader, dict[str, int]] = dict()
-
-    for cfg in tqdm(loader):
-    # for cfg in loader:
+    for cfg in loader:
         tokens = Tokeniser.tokenise(cfg)
+        indexes = Tokeniser.oneHotEncode(tokens)
+        vector = Tokeniser.vectorise(indexes)
         break
