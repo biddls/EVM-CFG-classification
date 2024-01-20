@@ -5,7 +5,8 @@ from glob import glob
 from dataclasses import dataclass, field
 from avaliableOpCodes import AvaliableOpCodes, specialTokens
 import collections
-
+import numpy.typing as npt
+from tqdm import tqdm
 
 @dataclass
 class CFG_Loader:
@@ -53,25 +54,47 @@ class Tokeniser:
     MAX_ADDRESS = "0xffffffffffffffffffffffffffffffffffffffff"
 
     @staticmethod
-    def tokenise(cfg: CFG_Reader) -> list[str | tuple[str, str]]:
+    def preProcessing(cfg: CFG_Reader) -> list[list[str | tuple[str, str]]]:
         """
         Tokenises the opcodes in the CFG
         """
-        tokens: list[str | tuple[str, str]] = list()
+        tokens: list[list[str | tuple[str, str]]] = list()
         # splits the opcodes into tokens
         for node in cfg.parsedOpcodes[:-1]:
+            nodeTokens = list()
             for opcode in node:
                 if " " in opcode:
                     opcode = opcode.split(" ")
                     opcode = tuple(opcode)
                     if len(opcode) == 2:
-                        tokens.append(opcode)
+                        nodeTokens.append(opcode)
                 else:
-                    tokens.append(opcode)
-        tokens.append("EXIT BLOCK")
-        # Gives me something that looks like this:
+                    if opcode == "INVALID":
+                        continue
+                    nodeTokens.append(opcode)
+            tokens.append(nodeTokens)
+        tokens.append(["EXIT BLOCK"])
+        # Gives me something that looks like this for each node:
         # ['ADD', 'MSTORE', 'ADD', ['PUSH2', '0x5ef0'], 'JUMP', 'EXIT BLOCK']
+        return tokens
 
+    @staticmethod
+    def tokenise(tokens: list[list[str | tuple[str, str]]]) -> list[npt.NDArray[np.bool_]]:
+        """
+        performs the tokeniseation for each node in the CFG
+        returns a list of matrices for each node
+        """
+        vectors = list()
+        for node in filter(lambda node: len(node), tokens):
+            temp = Tokeniser.tokeniseNode(node)
+            temp = Tokeniser.oneHotEncodeNode(temp)
+            temp = Tokeniser.vectoriseNode(temp)
+            vectors.append(temp)
+
+        return vectors
+
+    @staticmethod
+    def tokeniseNode(tokens: list[str | tuple[str, str]]) -> list[str | tuple[str, str]]:
         # Takes this and gives me the list of values
         # that should correspond to what tokens
         frequency = collections.Counter([
@@ -145,7 +168,7 @@ class Tokeniser:
         return tokens
 
     @staticmethod
-    def oneHotEncode(tokens: list[str | tuple[str, str]]) -> list[int|tuple[int, int]]:
+    def oneHotEncodeNode(tokens: list[str | tuple[str, str]]) -> list[int|tuple[int, int]]:
         """
         One hot encodes the tokens into their index
         """
@@ -162,7 +185,7 @@ class Tokeniser:
         return vectors
 
     @staticmethod
-    def vectorise(tokens: list[int | tuple[int, int]]) -> np.array:
+    def vectoriseNode(tokens: list[int | tuple[int, int]]) -> npt.NDArray[np.bool_]:
         """
         Vectorises the tokens into a 2D numpy array
         """
@@ -184,11 +207,19 @@ class Tokeniser:
 
 
 if __name__ == "__main__":
-    from timeit import repeat
     loader = CFG_Loader()
     tokens = list()
-    for cfg in loader:
-        tokens = Tokeniser.tokenise(cfg)
-        indexes = Tokeniser.oneHotEncode(tokens)
-        vector = Tokeniser.vectorise(indexes)
-        break
+    lengths = list()
+    for cfg in tqdm(loader):
+        tokens = Tokeniser.preProcessing(cfg)
+        vectors = Tokeniser.tokenise(tokens)
+        for vector in vectors:
+            lengths.append(vector.shape[0])
+    print(max(lengths))
+    print(min(lengths))
+    print(sum(lengths)/len(lengths))
+    print(np.median(lengths))
+    
+    import matplotlib.pyplot as plt
+    plt.hist(lengths, bins=200)
+    plt.show()
