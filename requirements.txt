@@ -1,10 +1,5 @@
 tqdm
 matplotlib
 networkx
-scipy
 flake8
-pytest
-pytest-cov
-# torch --index-url https://download.pytorch.org/whl/cu121
-# torchvision --index-url https://download.pytorch.org/whl/cu121
-# torchaudio --index-url https://download.pytorch.org/whl/cu121
+torch -i https://download.pytorch.org/whl/cu121

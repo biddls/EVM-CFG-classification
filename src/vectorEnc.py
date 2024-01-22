@@ -1,5 +1,6 @@
 import tokeniser
 from vectorEncoding.LSTM_Autoenc import LSTM_AutoEnc_Training
+from vectorEncoding.TF_IDF import TF_IDF
 from tqdm import tqdm
 
 if __name__ == "__main__":
@@ -15,9 +16,14 @@ if __name__ == "__main__":
         if count == 10:
             break
 
-    trainer = LSTM_AutoEnc_Training(data, 100)
-    trainer.trainEnc(10)
-    out = trainer.model.getVectors(data)
+    # # LSTM autoencoder
+    # trainer = LSTM_AutoEnc_Training(data, 100)
+    # trainer.trainEnc(10)
+    # out = trainer.model.getVectors(data)
+
+    # TF-IDF
+    tfidf = TF_IDF(data)
+    tfIdfVectors = tfidf()
 
 
 
