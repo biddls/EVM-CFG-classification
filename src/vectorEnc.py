@@ -1,6 +1,8 @@
+from numpy import average
 import tokeniser
 from vectorEncoding.LSTM_Autoenc import LSTM_AutoEnc_Training
 from vectorEncoding.TF_IDF import TF_IDF
+from vectorEncoding.averagingVectors import Average
 from tqdm import tqdm
 
 if __name__ == "__main__":
@@ -16,14 +18,18 @@ if __name__ == "__main__":
         if count == 10:
             break
 
-    # # LSTM autoencoder
+    # LSTM autoencoder
     # trainer = LSTM_AutoEnc_Training(data, 100)
     # trainer.trainEnc(10)
     # out = trainer.model.getVectors(data)
 
     # TF-IDF
-    tfidf = TF_IDF(data)
-    tfIdfVectors = tfidf()
+    # tfidf = TF_IDF(data)
+    # tfIdfVectors = tfidf()
+    
+    # Average
+    # _average = Average(data)
+    # averageVectors = _average()
 
 
 
