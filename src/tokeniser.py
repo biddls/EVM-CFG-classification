@@ -85,7 +85,7 @@ class Tokeniser:
         returns a list of matrices for each node
         """
         vectors = list()
-        for node in filter(lambda node: len(node), tokens):
+        for node in filter(lambda node: len(node), tokens[:-1]):
             temp = Tokeniser.tokeniseNode(node)
             temp = Tokeniser.oneHotEncodeNode(temp)
             temp = Tokeniser.vectoriseNode(temp)
@@ -158,7 +158,7 @@ class Tokeniser:
                 numbersAssigned += 1
 
         # Replaces the tokens with the encodings
-        for i, token in enumerate(tokens):
+        for i, token in enumerate(tokens[:-1]):
             if isinstance(token, tuple):
                 if token[1] in encodings:
                     tokens[i] = (token[0], encodings[token[1]])
@@ -177,8 +177,13 @@ class Tokeniser:
         for token in tokens:
             if isinstance(token, tuple):
                 # convert to more fancy vector
-                vectors.append(
-                    (AvaliableOpCodes[token[0]], specialTokens[token[1]]))
+                try:
+                    # todo: make "specialTokens" a state variable
+                    vectors.append(
+                        (AvaliableOpCodes[token[0]], specialTokens[token[1]]))
+                except KeyError as e:
+                    print(token)
+                    raise e
             else:
                 vectors.append(AvaliableOpCodes[token])
 

@@ -1,4 +1,3 @@
-from numpy import average
 import tokeniser
 from vectorEncoding.LSTM_Autoenc import LSTM_AutoEnc_Training
 from vectorEncoding.TF_IDF import TF_IDF
@@ -9,15 +8,22 @@ if __name__ == "__main__":
     loader = tokeniser.CFG_Loader()
     data = list()
     count = 0
+    cfgs = list()
     for cfg in tqdm(loader):
+        cfgs.append(cfg.addr)
         tokens = tokeniser.Tokeniser.preProcessing(cfg)
-        vectors = tokeniser.Tokeniser.tokenise(tokens)
+        try:
+            vectors = tokeniser.Tokeniser.tokenise(tokens)
+        except KeyError as e:
+            print(cfg.addr)
+            raise e
 
         data.extend(vectors)
         count += 1
         if count == 10:
             break
-
+    print(len(cfgs))
+    print(len(data))
     # LSTM autoencoder
     # trainer = LSTM_AutoEnc_Training(data, 100)
     # trainer.trainEnc(10)
