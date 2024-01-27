@@ -29,6 +29,8 @@ class Encoder(nn.Module):
         return x
 
     def getVectors(self, x):
+        """remeber to feed in for each node"""
+        raise NotImplementedError
         x, (_, _) = self.rnn1(x)
         _, (hidden_n, _) = self.rnn2(x)
         return hidden_n.reshape((x.shape[0], self.embedding_dim))
@@ -55,6 +57,8 @@ class Decoder(nn.Module):
     def forward(self, x):
         x, (_, _) = self.rnn1(x)
         x, (_, _) = self.rnn2(x)
+        # it runs the output layer on each time step independently
+        # and returns the result
         return self.output_layer(x)
 
 
@@ -70,6 +74,7 @@ class LSTMAE(nn.Module):
         return x
 
     def getVectors(self, x):
+        """remeber to feed in for each node"""
         return self.encoder.getVectors(x)
 
 
@@ -78,20 +83,23 @@ class LSTM_AutoEnc_Training:
         train_size = int(0.8 * len(data))
         self.train, self.valid = data[:train_size], data[train_size:]
 
-        # todo convert to using a list and no batching and processing each one individually
         self.train = torch.tensor(self.train).float().to(device)
         self.valid = torch.tensor(self.valid).float().to(device)
 
         if isinstance(data, list):
             width = data[0].shape[0]
         else:
-            width = data.shape[1]
+            width = data.shape[2]
 
         self.model = LSTMAE(width, embedding_dim).to(device)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9)
         self.criterion = nn.MSELoss()
 
     def trainEnc(self, epochs_num):
+        """
+        Input shape:
+        [samples, steps, features]
+        """
         self.epochs_num = epochs_num
         for epoch in range(self.epochs_num):
             # Training mode
@@ -104,17 +112,19 @@ class LSTM_AutoEnc_Training:
             self.optimizer.step()
             train_loss = loss.item()
 
-            # Evaluation mode
-            self.model.eval()
-            with torch.no_grad():
-                seq_pred_valid = self.model(self.valid)
-                val_loss = self.criterion(seq_pred_valid, self.valid).item()
+            if epoch % 10 == 0:
+                # Evaluation mode
+                self.model.eval()
+                with torch.no_grad():
+                    seq_pred_valid = self.model(self.valid)
+                    val_loss = self.criterion(seq_pred_valid, self.valid).item()
 
-            print(f'Epoch [{epoch+1}/{self.epochs_num}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')
+                print(f'Epoch [{epoch+1}/{self.epochs_num}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')
 
 
 if __name__ == "__main__":
-    data = torch.rand((10, 20, 30)).to(device)
+    # [samples, steps, features]
+    data = np.random.rand(10, 20, 30)
     trainer = LSTM_AutoEnc_Training(data, 32)
     trainer.trainEnc(100)
     out = trainer.model.getVectors(data)

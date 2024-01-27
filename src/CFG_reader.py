@@ -57,7 +57,7 @@ class CFG_Reader:
 
     def drawGraph(self) -> None:
         if self.graph is None:
-            raise Exception("Graph not generated")
+            raise AttributeError("Graph not generated")
         # Draw the graph
         pos = nx.spring_layout(self.graph)  # You can use other layouts as well
         nx.draw(

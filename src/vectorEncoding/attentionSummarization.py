@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
-raise Exception("This file is not finished yet!")
+raise NotImplementedError
+
+
 class AttentionDoc2Vec(nn.Module):
     def __init__(self, input_size, hidden_size, num_heads, output_size):
         super(AttentionDoc2Vec, self).__init__()
