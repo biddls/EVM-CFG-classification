@@ -12,11 +12,7 @@ if __name__ == "__main__":
     for cfg in tqdm(loader):
         cfgs.append(cfg.addr)
         tokens = tokeniser.Tokeniser.preProcessing(cfg)
-        try:
-            vectors = tokeniser.Tokeniser.tokenise(tokens)
-        except KeyError as e:
-            print(cfg.addr)
-            raise e
+        vectors = tokeniser.Tokeniser.tokenise(tokens)
 
         data.extend(vectors)
         count += 1

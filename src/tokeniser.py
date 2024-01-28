@@ -63,7 +63,9 @@ class Tokeniser:
         for node in cfg.parsedOpcodes[:-1]:
             nodeTokens = list()
             for opcode in node:
-                if " " in opcode:
+                if opcode == "EXIT BLOCK":
+                    continue
+                elif " " in opcode:
                     opcode = opcode.split(" ")
                     opcode = tuple(opcode)
                     if len(opcode) == 2:
@@ -76,6 +78,9 @@ class Tokeniser:
         tokens.append(["EXIT BLOCK"])
         # Gives me something that looks like this for each node:
         # ['ADD', 'MSTORE', 'ADD', ['PUSH2', '0x5ef0'], 'JUMP', 'EXIT BLOCK']
+        # print("###")
+        # print(tokens[-2:])
+        # print("###")
         return tokens
 
     @staticmethod
@@ -85,7 +90,7 @@ class Tokeniser:
         returns a list of matrices for each node
         """
         vectors = list()
-        for node in filter(lambda node: len(node), tokens[:-1]):
+        for node in filter(lambda node: len(node), tokens):
             temp = Tokeniser.tokeniseNode(node)
             temp = Tokeniser.oneHotEncodeNode(temp)
             temp = Tokeniser.vectoriseNode(temp)
@@ -94,11 +99,11 @@ class Tokeniser:
         return vectors
 
     @staticmethod
-    def tokeniseNode(tokens: list[str | tuple[str, str]]) -> list[str | tuple[str, str]]:
+    def tokeniseNode(byteCodes: list[str | tuple[str, str]]) -> list[str | tuple[str, str]]:
         # Takes this and gives me the list of values
         # that should correspond to what tokens
         frequency = collections.Counter([
-            token[1] for token in tokens if isinstance(token, tuple)
+            token[1] for token in byteCodes if isinstance(token, tuple)
         ])
         frequency = dict(frequency)
         """
@@ -110,7 +115,12 @@ class Tokeniser:
             <ZERO_ADDRESS>
             <MAX_ADDRESS>
         """
-
+        # if tokens == [["EXIT BLOCK"]]:
+        #     print("EXIT BLOCK")
+        #     exit(0)
+        #     return ["EXIT BLOCK"]
+        # else:
+        #     print(tokens)
         encodings = dict()
         # Addresses
         addrFreq = dict()
@@ -158,14 +168,14 @@ class Tokeniser:
                 numbersAssigned += 1
 
         # Replaces the tokens with the encodings
-        for i, token in enumerate(tokens[:-1]):
+        for i, token in enumerate(byteCodes):
             if isinstance(token, tuple):
                 if token[1] in encodings:
-                    tokens[i] = (token[0], encodings[token[1]])
+                    byteCodes[i] = (token[0], encodings[token[1]])
                 else:
-                    tokens[i] = token[0]
+                    byteCodes[i] = token[0]
 
-        return tokens
+        return byteCodes
 
     @staticmethod
     def oneHotEncodeNode(tokens: list[str | tuple[str, str]]) -> list[int|tuple[int, int]]:
@@ -177,13 +187,8 @@ class Tokeniser:
         for token in tokens:
             if isinstance(token, tuple):
                 # convert to more fancy vector
-                try:
-                    # todo: make "specialTokens" a state variable
-                    vectors.append(
-                        (AvaliableOpCodes[token[0]], specialTokens[token[1]]))
-                except KeyError as e:
-                    print(token)
-                    raise e
+                vectors.append(
+                    (AvaliableOpCodes[token[0]], specialTokens[token[1]]))
             else:
                 vectors.append(AvaliableOpCodes[token])
 
