@@ -1,9 +1,20 @@
 import torch
 import torch.nn as nn
 import numpy as np
+import numpy.typing as npt
+from tqdm import tqdm
+import datetime as dt
+
+"""
+Save:
+    torch.save(model.state_dict(), PATH)
+Load:
+    model = TheModelClass(*args, **kwargs)
+    model.load_state_dict(torch.load(PATH))
+    model.eval()
+"""
 
 device = torch.device('cuda')
-
 
 class Encoder(nn.Module):
     def __init__(self, n_features, embedding_dim):
@@ -20,20 +31,20 @@ class Encoder(nn.Module):
             input_size=self.hidden_dim,
             hidden_size=embedding_dim,
             num_layers=1,
-            batch_first=True
+            batch_first=True,
         )
 
     def forward(self, x):
+        # [len of smaple, features]
+        # [20, 30]
         x, (_, _) = self.rnn1(x)
-        x, (_, _) = self.rnn2(x)
-        return x
+        # [len of smaple, embedding_dim]
+        # [20, 64]
+        _, (hidden, _) = self.rnn2(x)
+        # [64]
+        # hidden.shape => [1, batch_size, embedding_dim]
+        return hidden.reshape(-1)
 
-    def getVectors(self, x):
-        """remeber to feed in for each node"""
-        raise NotImplementedError
-        x, (_, _) = self.rnn1(x)
-        _, (hidden_n, _) = self.rnn2(x)
-        return hidden_n.reshape((x.shape[0], self.embedding_dim))
 
 class Decoder(nn.Module):
     def __init__(self, n_features, input_dim):
@@ -54,9 +65,15 @@ class Decoder(nn.Module):
         )
         self.output_layer = nn.Linear(self.hidden_dim, n_features)
 
-    def forward(self, x):
+    def forward(self, x, sample_len):
+        # [32]
+        # stack the vector to get back the timesteps
+        x = x.repeat(sample_len, 1)
+        # [20, 32]
         x, (_, _) = self.rnn1(x)
+        # [20, 64]
         x, (_, _) = self.rnn2(x)
+        # [20, 64]
         # it runs the output layer on each time step independently
         # and returns the result
         return self.output_layer(x)
@@ -69,62 +86,126 @@ class LSTMAE(nn.Module):
         self.decoder = Decoder(n_features, embedding_dim).to(device)
 
     def forward(self, x):
+        sample_len = x.shape[0]
         x = self.encoder(x)
-        x = self.decoder(x)
+        x = self.decoder(x, sample_len)
         return x
-
-    def getVectors(self, x):
-        """remeber to feed in for each node"""
-        return self.encoder.getVectors(x)
 
 
 class LSTM_AutoEnc_Training:
-    def __init__(self, data, embedding_dim):
-        train_size = int(0.8 * len(data))
-        self.train, self.valid = data[:train_size], data[train_size:]
+    def __init__(self, data: list[npt.NDArray[np.bool_]], embedding_dim: int, CFGs: int):
+        print(f"Size of data: {len(data)}")
+        self.data, self.weights = self.findWeights(data, CFGs)
+        del data # its alot so, good to free up
 
-        self.train = torch.tensor(self.train).float().to(device)
-        self.valid = torch.tensor(self.valid).float().to(device)
+        self.data = [torch.Tensor(x).to(device) for x in tqdm(self.data, desc="Loading data to GPU")]
 
-        if isinstance(data, list):
-            width = data[0].shape[0]
-        else:
-            width = data.shape[2]
+        width = self.data[0].shape[1]
 
         self.model = LSTMAE(width, embedding_dim).to(device)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.0001, momentum=0.9)
         self.criterion = nn.MSELoss()
 
-    def trainEnc(self, epochs_num):
+    def trainEnc(self, epochs_num: int):
         """
         Input shape:
-        [samples, steps, features]
+        [samples(fixed), steps (varies), features(fixed)]
         """
         self.epochs_num = epochs_num
+        if len(self.data) == 0:
+            raise ValueError("No training data provided")
+
+        train_loss=0
+        # loop = tqdm(
+        #     range(self.epochs_num),
+        #     desc=f"TL: nan",
+        #     position=0,
+        #     leave=True,
+        #     unit="Epoch"
+        # )
+        
         for epoch in range(self.epochs_num):
             # Training mode
             self.model.train()
             self.optimizer.zero_grad()
+            train_losses = list()
+            loopTrain = tqdm(
+                zip(self.data, self.weights),
+                leave=False,
+                desc=f"Epoch {epoch+1}/{self.epochs_num}",
+                position=1,
+                total=len(self.data)
+            )
+            # runs through each sample
+            for sample, weight in loopTrain:
+                seq_pred = self.model(sample)
+                # reverses the sequence
+                seq_pred = seq_pred.flip(0)
 
-            seq_pred = self.model(self.train)
-            loss = self.criterion(seq_pred, self.train)
-            loss.backward()
-            self.optimizer.step()
-            train_loss = loss.item()
+                train_loss = self.criterion(seq_pred, sample)
+                train_loss = train_loss * weight
+                train_loss.backward()
+                self.optimizer.step()
+                train_losses.append(train_loss.item())
 
-            if epoch % 10 == 0:
-                # Evaluation mode
-                self.model.eval()
-                with torch.no_grad():
-                    seq_pred_valid = self.model(self.valid)
-                    val_loss = self.criterion(seq_pred_valid, self.valid).item()
+            train_loss = np.mean(train_losses)
+            # loop.set_description(f'TL: {str(train_loss)[:6]}')
+            print(f' Loss: {str(train_loss)[:6]} | {dt.datetime.now().strftime("HH:MM DD/MM/YY")}', end='')
 
-                print(f'Epoch [{epoch+1}/{self.epochs_num}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}')
+            if epoch % 10 == 0 and epoch != 0:
+                # saves the model every 10 epochs
+                torch.save(self.model.state_dict(), f"./src/vectorEncoding/checkpointsLSTMAutoenc/LSTM_Autoenc{epoch}of{self.epochs_num}.pt")
+
+
+    def findWeights(self, data: list[npt.NDArray[np.bool_]], CFGs: int) -> tuple[list[npt.NDArray[np.bool_]], list[float]]:
+        """
+        Finds the weights of the data
+        This is like a basic frequency count
+        """
+        freq = []
+        temp_data = []
+        for temp in tqdm(data, desc="Finding weights"):
+            if self.findSample(temp, temp_data):
+                continue
+            freq.append(self.countSample(temp, data))
+            temp_data.append(temp)
+
+        freq = np.array(freq) / CFGs
+        # add e to every element
+        freq = freq + np.e - 1 + (1 - (1 / CFGs))
+        # take the natural log of every element
+        freq = np.log(freq)
+        # conver to a list
+        freq = freq.tolist()
+
+        return temp_data, freq
+
+    def countSample(self, sample1: npt.NDArray[np.bool_], data: list[npt.NDArray[np.bool_]]) -> int:
+        """
+        Checks if the sample is valid
+        """
+        count = 0
+        for sample in data:
+            if sample1.shape != sample.shape:
+                continue
+            elif np.array_equal(sample1, sample):
+                count += 1
+        return count
+
+    def findSample(self, sample1: npt.NDArray[np.bool_], data: list[npt.NDArray[np.bool_]]) -> bool:
+        """
+        Checks if the sample is valid
+        """
+        for sample in data:
+            if sample1.shape != sample.shape:
+                continue
+            elif np.array_equal(sample1, sample):
+                return True
+        return False
 
 
 if __name__ == "__main__":
     # [samples, steps, features]
     data = np.random.rand(10, 20, 30)
-    trainer = LSTM_AutoEnc_Training(data, 32)
+    trainer = LSTM_AutoEnc_Training(data, 32, 10) # type: ignore
     trainer.trainEnc(100)
-    out = trainer.model.getVectors(data)

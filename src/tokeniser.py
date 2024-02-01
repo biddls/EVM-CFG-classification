@@ -7,6 +7,7 @@ from avaliableOpCodes import AvaliableOpCodes, specialTokens
 import collections
 import numpy.typing as npt
 from tqdm import tqdm
+from collections import Counter
 
 @dataclass
 class CFG_Loader:
@@ -84,7 +85,7 @@ class Tokeniser:
         return tokens
 
     @staticmethod
-    def tokenise(tokens: list[list[str | tuple[str, str]]]) -> list[npt.NDArray[np.bool_]]:
+    def tokenise(tokens: list[list[str | tuple[str, str]]]) -> tuple[list[npt.NDArray[np.bool_]], list[int]]:
         """
         performs the tokeniseation for each node in the CFG
         returns a list of matrices for each node
@@ -96,7 +97,18 @@ class Tokeniser:
             temp = Tokeniser.vectoriseNode(temp)
             vectors.append(temp)
 
-        return vectors
+        return vectors, list()
+
+        # todo: implement this
+        counts = Counter(vectors)
+        counts: dict[list[int | tuple[int, int]], int] = dict(counts)
+
+        newVectors: list[npt.NDArray[np.bool_]] = list()
+        for temp in counts.keys():
+            temp = Tokeniser.vectoriseNode(temp)
+            newVectors.append(temp)
+
+        return newVectors, list(counts.values())
 
     @staticmethod
     def tokeniseNode(byteCodes: list[str | tuple[str, str]]) -> list[str | tuple[str, str]]:

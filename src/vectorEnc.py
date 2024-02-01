@@ -5,25 +5,30 @@ from vectorEncoding.averagingVectors import Average
 from tqdm import tqdm
 
 if __name__ == "__main__":
+    # todo: keep the data in the index based status until its about to be loaded onto the GPU
+    # todo: mby cache it in that state also...
     loader = tokeniser.CFG_Loader()
     data = list()
     count = 0
     cfgs = list()
+    CFGs = 50
     for cfg in tqdm(loader):
-        cfgs.append(cfg.addr)
-        tokens = tokeniser.Tokeniser.preProcessing(cfg)
-        vectors = tokeniser.Tokeniser.tokenise(tokens)
+        try:
+            cfgs.append(cfg.addr)
+            tokens = tokeniser.Tokeniser.preProcessing(cfg)
+            vectors, counts = tokeniser.Tokeniser.tokenise(tokens)
 
-        data.extend(vectors)
-        count += 1
-        if count == 10:
+            data.extend(vectors)
+            count += 1
+            if count == CFGs:
+                break
+
+        except KeyboardInterrupt:
             break
-    print(len(cfgs))
-    print(len(data))
+
     # LSTM autoencoder
-    # trainer = LSTM_AutoEnc_Training(data, 100)
-    # trainer.trainEnc(10)
-    # out = trainer.model.getVectors(data)
+    trainer = LSTM_AutoEnc_Training(data, 150, count)
+    trainer.trainEnc(200)
 
     # TF-IDF
     # tfidf = TF_IDF(data)
