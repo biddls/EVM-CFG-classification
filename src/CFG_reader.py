@@ -11,37 +11,36 @@ class CFG_Reader:
     graph: nx.DiGraph
     path: str
     addr: str
-    parsedOpcodes: list[list[str]] = list()
+    parsedOpcodes: list[list[str]]
+    tokens: list[list[str | tuple[str, str]]]
 
     def __init__(self, path: str) -> None:
         self.path = path
         self.addr = path.split("\\")[-1].split(".")[0]
         # Load JSON data from file
         with open(path, "r") as json_file:
-            data: dict = json.load(json_file)
+            self.data: dict = json.load(json_file)
 
         # Get the opcodes from the JSON file
-        nodes = data["runtimeCfg"]["nodes"]
+        nodes = self.data["runtimeCfg"]["nodes"]
         # splits the opcodes into a list of opcodes
         parsedOpcodes: list[str] = [
             node["parsedOpcodes"].split("\n") for node in nodes
             ]
         # cleans the opcodes
+        self.parsedOpcodes = list()
         for i in range(len(parsedOpcodes)):
             temp = [
                 opcode.split(" ", maxsplit=1)[1] for opcode in parsedOpcodes[i]
             ]
             self.parsedOpcodes.append(temp)
 
-        # Generate the graph
-        self.generateGraph(data)
-
-    def generateGraph(self, data) -> None:
+    def generateGraph(self) -> None:
         # Create a directed graph
         self.graph = nx.DiGraph()
 
         # Add nodes
-        for node, parsedOpcode in zip(data["runtimeCfg"]["nodes"], self.parsedOpcodes):
+        for node, parsedOpcode in zip(self.data["runtimeCfg"]["nodes"], self.parsedOpcodes):
             self.graph.add_node(
                 node["offset"],
                 # type=node["type"],
@@ -49,7 +48,7 @@ class CFG_Reader:
             )
 
         # Add edges
-        for successor in data["runtimeCfg"]["successors"]:
+        for successor in self.data["runtimeCfg"]["successors"]:
             from_node = successor["from"]
             to_nodes = successor["to"]
             for to_node in to_nodes:
@@ -57,7 +56,7 @@ class CFG_Reader:
 
     def drawGraph(self) -> None:
         if self.graph is None:
-            raise AttributeError("Graph not generated")
+            self.generateGraph()
         # Draw the graph
         pos = nx.spring_layout(self.graph)  # You can use other layouts as well
         nx.draw(
@@ -78,14 +77,22 @@ class CFG_Reader:
         return self.path
 
     def nodeCount(self) -> int:
+        if self.graph is None:
+            self.generateGraph()
         return len(self.graph.nodes)
 
     def edgeCount(self) -> int:
+        if self.graph is None:
+            self.generateGraph()
         return len(self.graph.edges)
 
     def getParsedOpcodes(self): # -> list[list[str]]:
+        if self.graph is None:
+            self.generateGraph()
         return self.graph.nodes.data()
-
+    
+    def addTokens(self, tokens: list[list[str | tuple[str, str]]]) -> None:
+        self.tokens = tokens
 
 
 if __name__ == "__main__":

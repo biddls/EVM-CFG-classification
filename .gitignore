@@ -9,4 +9,4 @@ __pycache__/
 .vscode
 .pytest_cache
 *.db
-src/vectorEncoding/checkpointsLSTMAutoenc
+src/vectorEncoding/cache

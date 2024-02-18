@@ -4,6 +4,8 @@ import numpy as np
 import numpy.typing as npt
 from tqdm import tqdm
 import datetime as dt
+from collections import Counter
+from tokeniser import Tokeniser
 
 """
 Save:
@@ -93,7 +95,7 @@ class LSTMAE(nn.Module):
 
 
 class LSTM_AutoEnc_Training:
-    def __init__(self, data: list[npt.NDArray[np.bool_]], embedding_dim: int, CFGs: int):
+    def __init__(self, data: Counter[tuple[int | tuple[int, int]]], embedding_dim: int, CFGs: int):
         print(f"Size of data: {len(data)}")
         self.data, self.weights = self.findWeights(data, CFGs)
         del data # its alot so, good to free up
@@ -150,26 +152,25 @@ class LSTM_AutoEnc_Training:
 
             train_loss = np.mean(train_losses)
             # loop.set_description(f'TL: {str(train_loss)[:6]}')
-            print(f' Loss: {str(train_loss)[:6]} | {dt.datetime.now().strftime("HH:MM DD/MM/YY")}', end='')
+            now = dt.datetime.now()
+            print(f' Loss: {str(train_loss)[:6]} | {now.strftime("%H:%M %d/%m/%y")}', end='')
 
             if epoch % 10 == 0 and epoch != 0:
                 # saves the model every 10 epochs
-                torch.save(self.model.state_dict(), f"./src/vectorEncoding/checkpointsLSTMAutoenc/LSTM_Autoenc{epoch}of{self.epochs_num}.pt")
+                torch.save(self.model.state_dict(), f"./src/vectorEncoding/cache/checkpointsLSTMAutoenc/LSTM_Autoenc{epoch}of{self.epochs_num}.pt")
 
-
-    def findWeights(self, data: list[npt.NDArray[np.bool_]], CFGs: int) -> tuple[list[npt.NDArray[np.bool_]], list[float]]:
+    def findWeights(self, data: Counter[tuple[int | tuple[int, int]]], CFGs: int) -> tuple[list[npt.NDArray[np.bool_]], list[float]]:
         """
         Finds the weights of the data
         This is like a basic frequency count
         """
-        freq = []
-        temp_data = []
-        for temp in tqdm(data, desc="Finding weights"):
-            if self.findSample(temp, temp_data):
-                continue
-            freq.append(self.countSample(temp, data))
-            temp_data.append(temp)
 
+        freq = list(data.values())
+        
+        print(f"Number of training examples: {np.sum(freq)}")
+        print(f"Number now compressed: {len(freq)}")
+        print(f"Compression ratio of: {100 * (np.sum(freq) / len(freq)):.4f}%")
+        
         freq = np.array(freq) / CFGs
         # add e to every element
         freq = freq + np.e - 1 + (1 - (1 / CFGs))
@@ -177,6 +178,11 @@ class LSTM_AutoEnc_Training:
         freq = np.log(freq)
         # conver to a list
         freq = freq.tolist()
+        freq = [float(x) for x in freq]
+
+        temp_data = list(data.keys())
+        temp_data = map(lambda x : Tokeniser.vectoriseNode(list(x)), temp_data)
+        temp_data = list(temp_data)
 
         return temp_data, freq
 

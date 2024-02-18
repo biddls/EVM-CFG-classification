@@ -8,6 +8,7 @@ import collections
 import numpy.typing as npt
 from tqdm import tqdm
 from collections import Counter
+import os
 
 @dataclass
 class CFG_Loader:
@@ -15,13 +16,19 @@ class CFG_Loader:
     Loads all the CFG's dynamicaly to avoid having to load them all at once
     """
     avaliable_cfgs: dict[str, str] = field(default_factory=dict, init=False)
+    exclusionList: str = field(default_factory=str, init=True)
 
     def __post_init__(self) -> None:
         files = glob("./src/ControlFlowGraphs/evmOut/*.json")
+        excluded = glob(self.exclusionList)
+        excluded = [os.path.basename(x).split(".")[0] for x in excluded]
 
         # self.avaliable_cfgs = {addr: file path}
         for file in files:
-            self.avaliable_cfgs[file.split("\\")[-1].split(".")[0]] = file
+            addr = file.split("\\")[-1].split(".")[0]
+            if addr in excluded:
+                continue
+            self.avaliable_cfgs[addr] = file
 
     # dict get item method
     def __getitem__(self, key: str) -> CFG_Reader:
@@ -61,6 +68,7 @@ class Tokeniser:
         """
         tokens: list[list[str | tuple[str, str]]] = list()
         # splits the opcodes into tokens
+        # print(f"len of opCodes: {len(cfg.parsedOpcodes)}")
         for node in cfg.parsedOpcodes[:-1]:
             nodeTokens = list()
             for opcode in node:
@@ -82,33 +90,39 @@ class Tokeniser:
         # print("###")
         # print(tokens[-2:])
         # print("###")
+        # print(f"len in preprocessing: {len(tokens)}")
         return tokens
 
     @staticmethod
-    def tokenise(tokens: list[list[str | tuple[str, str]]]) -> tuple[list[npt.NDArray[np.bool_]], list[int]]:
+    def tokenise(
+        tokens: list[list[str | tuple[str, str]]],
+        counting: bool = False
+        ) -> Counter[
+            tuple[
+                int | tuple[int, int]
+                ]
+            ] | list[
+            tuple[
+                int | tuple[int, int]
+                ]]:
+
         """
         performs the tokeniseation for each node in the CFG
-        returns a list of matrices for each node
+        returns a list of matrices for each node and their frequency in the dataset
         """
-        vectors = list()
+        vectors: list[tuple[int | tuple[int, int]]] = list()
         for node in filter(lambda node: len(node), tokens):
             temp = Tokeniser.tokeniseNode(node)
             temp = Tokeniser.oneHotEncodeNode(temp)
-            temp = Tokeniser.vectoriseNode(temp)
-            vectors.append(temp)
+            # temp = Tokeniser.vectoriseNode(temp)
+            temp = tuple(temp)
+            vectors.append(temp) # type: ignore
 
-        return vectors, list()
-
-        # todo: implement this
-        counts = Counter(vectors)
-        counts: dict[list[int | tuple[int, int]], int] = dict(counts)
-
-        newVectors: list[npt.NDArray[np.bool_]] = list()
-        for temp in counts.keys():
-            temp = Tokeniser.vectoriseNode(temp)
-            newVectors.append(temp)
-
-        return newVectors, list(counts.values())
+        if counting is True:
+            return Counter(vectors)
+        else:
+            # print(f"len in tokeniseation: {len(vectors)}")
+            return vectors
 
     @staticmethod
     def tokeniseNode(byteCodes: list[str | tuple[str, str]]) -> list[str | tuple[str, str]]:
@@ -228,20 +242,20 @@ class Tokeniser:
         return vector
 
 
-if __name__ == "__main__":
-    loader = CFG_Loader()
-    tokens = list()
-    lengths = list()
-    for cfg in tqdm(loader):
-        tokens = Tokeniser.preProcessing(cfg)
-        vectors = Tokeniser.tokenise(tokens)
-        for vector in vectors:
-            lengths.append(vector.shape[0])
-    print(max(lengths))
-    print(min(lengths))
-    print(sum(lengths)/len(lengths))
-    print(np.median(lengths))
+# if __name__ == "__main__":
+#     loader = CFG_Loader()
+#     tokens = list()
+#     lengths = list()
+#     for cfg in tqdm(loader):
+#         tokens = Tokeniser.preProcessing(cfg)
+#         vectors = Tokeniser.tokenise(tokens)
+#         for vector in vectors:
+#             lengths.append(vector.shape[0])
+#     print(max(lengths))
+#     print(min(lengths))
+#     print(sum(lengths)/len(lengths))
+#     print(np.median(lengths))
     
-    import matplotlib.pyplot as plt
-    plt.hist(lengths, bins=200)
-    plt.show()
+#     import matplotlib.pyplot as plt
+#     plt.hist(lengths, bins=200)
+#     plt.show()
