@@ -1,7 +1,5 @@
 tqdm
 matplotlib
 networkx
-scipy
 flake8
-pytest
-pytest-cov
+torch -i https://download.pytorch.org/whl/cu121
