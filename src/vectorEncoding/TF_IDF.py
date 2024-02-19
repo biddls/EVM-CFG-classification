@@ -44,7 +44,7 @@ class TF_IDF:
         # [number of documents, number of tokens in each word]
         tf = np.zeros((len(self.data), self.width))
         # for each document
-        for i, document in tqdm(enumerate(self.data), total=len(self.data), desc="Calculating TF"):
+        for i, document in enumerate(self.data):
             length = len(document)
             document = np.array(document)
             # sums the values down each column 
@@ -59,7 +59,7 @@ class TF_IDF:
         # calculate the inverse document frequency
         idf = np.zeros(self.width)
         # calculate the number of documents that contain the token
-        for node, counts in tqdm(zip(self.data, self.counts), total=len(self.data), desc="Calculating IDF"):
+        for node, counts in zip(self.data, self.counts):
             temp = np.clip(np.sum(node, axis=0), None, 1)
             # the " * counts" is the number of documents that are the same as the current document
             idf += temp * counts

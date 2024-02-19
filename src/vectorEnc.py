@@ -43,9 +43,8 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             break
 
-    # LSTM autoencoder
-    trainer = LSTM_AutoEnc_Training(counts, 150, count)
-    trainer.trainEnc(200)
+    print(f"Compression ratio of: {100 * (1 - (len(counts) / sum(list(counts.values())))):.2f}%")
+
 
     # TF-IDF
     tfIdfVectors = TF_IDF(counts)()
@@ -55,6 +54,21 @@ if __name__ == "__main__":
     # raise NotImplementedError("Averaging is Not implemented yet")
     averageVectors = Average(counts)()
     print(f"{averageVectors.shape = }")
+
+    # LSTM autoencoder
+    trainer = LSTM_AutoEnc_Training(counts, 150, count)
+    trainer.trainEnc(5, checkpoints=False)
+    LSTMEncodings = trainer.getEncodings()
+    print(f"{LSTMEncodings.shape = }")
+
+    shapes = [
+        tfIdfVectors.shape,
+        averageVectors.shape,
+        LSTMEncodings.shape
+    ]
+
+    if all([shapes[0][0] == shape[0] for shape in shapes]):
+        print("All shapes are equal length")
 
 
 """
