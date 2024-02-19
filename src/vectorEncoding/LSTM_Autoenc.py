@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import numpy as np
@@ -97,6 +98,12 @@ class LSTMAE(nn.Module):
 class LSTM_AutoEnc_Training:
     def __init__(self, data: Counter[tuple[int | tuple[int, int]]], embedding_dim: int, CFGs: int):
         # print(f"Size of data: {len(data)}")
+        self.embedding_dim = embedding_dim
+        
+        path = f"./src/vectorEncoding/cache/checkpointsLSTMAutoenc/width{self.embedding_dim}/"
+        if not os.path.exists(path):
+            os.makedirs(path)
+        
         self.data, self.weights = self.findWeights(data, CFGs)
         del data # its alot so, good to free up
 
@@ -108,33 +115,32 @@ class LSTM_AutoEnc_Training:
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.0001, momentum=0.9)
         self.criterion = nn.MSELoss()
 
-    def trainEnc(self, epochs_num: int, checkpoints: bool = False):
-        # todo: losses are going up fix
+
+    def trainEnc(self, epochs_num: int, checkpoints: bool = False, progress: bool = False) -> list[float]:
         """
         Input shape:
         [samples(fixed), steps (varies), features(fixed)]
+        returns the final loss
         """
         if len(self.data) == 0:
             raise ValueError("No training data provided")
 
+        # todo: convert to batched training
+
+        width = len(str(epochs_num))
         train_loss=0
-        # loop = tqdm(
-        #     range(self.epochs_num),
-        #     desc=f"TL: nan",
-        #     position=0,
-        #     leave=True,
-        #     unit="Epoch"
-        # )
-        
-        for epoch in range(epochs_num):
-            # Training mode
-            self.model.train()
+        final_train_losses = list()
+        # Training mode
+        self.model.train()
+        history = 20
+        for epoch in range(1, epochs_num):
             self.optimizer.zero_grad()
             train_losses = list()
+
             loopTrain = tqdm(
                 zip(self.data, self.weights),
                 leave=False,
-                desc=f"Epoch {epoch+1}/{epochs_num}",
+                desc=f"Epoch {epoch: {width}d}/{epochs_num}",
                 position=1,
                 total=len(self.data),
                 ncols=0,
@@ -156,13 +162,28 @@ class LSTM_AutoEnc_Training:
             train_loss = np.mean(train_losses)
             # loop.set_description(f'TL: {str(train_loss)[:6]}')
             now = dt.datetime.now()
-            width = len(str(epochs_num))
             # width -= len(str(epoch+1))
-            print(f'\nEpoch{epoch+1: {width+1}d}/{epochs_num}| Loss: {str(train_loss)[:6]} | {now.strftime("%H:%M %d/%m/%y")}', end='')
+            if progress:
+                print(f'\nEpoch{epoch: {width+1}d}/{epochs_num}| Loss: {train_loss:.8f} | {now.strftime("%H:%M:%S %d/%m/%y")}', end='')
 
-            if (epoch % 10 == 0 and epoch != 0) and checkpoints:
+            # check for early stopping
+            if len(final_train_losses) > history:
+                backAv = sum(final_train_losses[-history:-1])/(history-1)
+                if backAv * .99 < final_train_losses[-1]:
+                    torch.save(self.model.state_dict(), f"./src/vectorEncoding/cache/checkpointsLSTMAutoenc/width{self.embedding_dim}/LSTM_Autoenc_FINAL{epoch}of{epochs_num}.pt")
+                    print(f"Early stopping at epoch {epoch}")
+                    # print(f"{backAv * .99 = }")
+                    # print(f"{final_train_losses[-1] = }")
+                    break
+
+            # checkpointing
+            if (epoch % 5 == 0 and epoch != 1) and checkpoints:
                 # saves the model every 10 epochs
-                torch.save(self.model.state_dict(), f"./src/vectorEncoding/cache/checkpointsLSTMAutoenc/LSTM_Autoenc{epoch}of{epochs_num}.pt")
+                torch.save(self.model.state_dict(), f"./src/vectorEncoding/cache/checkpointsLSTMAutoenc/width{self.embedding_dim}/LSTM_Autoenc{epoch}of{epochs_num}.pt")
+            final_train_losses.append(float(train_loss))
+
+        return final_train_losses
+
 
     def findWeights(self, data: Counter[tuple[int | tuple[int, int]]], CFGs: int) -> tuple[list[npt.NDArray[np.bool_]], list[float]]:
         """
@@ -171,7 +192,7 @@ class LSTM_AutoEnc_Training:
         """
 
         weights = list(data.values())
-        
+        # todo think about how i want to handle weights
         # print(f"Number of training examples: {np.sum(weights):,.0f}")
         # print(f"Number now compressed: {len(weights):,.0f}")
         # print(f"Compression ratio of: {100 * (1 - (len(weights) / np.sum(weights))):.2f}%")
@@ -191,6 +212,7 @@ class LSTM_AutoEnc_Training:
 
         return temp_data, list(np.ones_like(weights))
 
+
     def getEncodings(self) -> npt.NDArray[np.float64]:
         """
         Returns the encodings of the data
@@ -200,9 +222,3 @@ class LSTM_AutoEnc_Training:
         for sample in tqdm(self.data, desc="generating encodings"):
             encodings.append(self.model.encoder(sample).cpu().detach().numpy())
         return np.array(encodings)
-
-if __name__ == "__main__":
-    # [samples, steps, features]
-    data = np.random.rand(10, 20, 30)
-    trainer = LSTM_AutoEnc_Training(data, 32, 10) # type: ignore
-    trainer.trainEnc(100)

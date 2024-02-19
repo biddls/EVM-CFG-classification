@@ -240,22 +240,3 @@ class Tokeniser:
                 vector[i, token] = True
 
         return vector
-
-
-# if __name__ == "__main__":
-#     loader = CFG_Loader()
-#     tokens = list()
-#     lengths = list()
-#     for cfg in tqdm(loader):
-#         tokens = Tokeniser.preProcessing(cfg)
-#         vectors = Tokeniser.tokenise(tokens)
-#         for vector in vectors:
-#             lengths.append(vector.shape[0])
-#     print(max(lengths))
-#     print(min(lengths))
-#     print(sum(lengths)/len(lengths))
-#     print(np.median(lengths))
-    
-#     import matplotlib.pyplot as plt
-#     plt.hist(lengths, bins=200)
-#     plt.show()
