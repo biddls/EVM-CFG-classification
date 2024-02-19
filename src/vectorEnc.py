@@ -13,12 +13,13 @@ if __name__ == "__main__":
     loader = tokeniser.CFG_Loader(exclusionList="./src/vectorEncoding/cache/conts/*.txt")
     count = 0
     cfgs = list()
-    
+
     # set to 0 to do all the data
-    max_cfgs = 0
+    max_cfgs = 5
     counts: Counter[tuple[int | tuple[int, int]]] = Counter()
     countToggle = Enum("enableCounting", {"Counting": True, "notCounting": False}).Counting
-    loader = tqdm(loader)
+    loader = tqdm(loader, desc="Loading and encoding CFGs")
+    data: dict[str, list[tuple[int | tuple[int, int]]]] = {}
 
     for cfg in loader:
         # print(cfg)
@@ -28,10 +29,12 @@ if __name__ == "__main__":
             temp_counts = tokeniser.Tokeniser.tokenise(tokens, counting=countToggle.value)
 
             if countToggle == countToggle.Counting:
-                # adds temp_counts to counts adding the values together
-                counts.update(temp_counts)
-            else:
-                cfg.addTokens(tokens)
+                if isinstance(counts, Counter):
+                    # adds temp_counts to counts adding the values together
+                    counts.update(temp_counts)
+            elif countToggle == countToggle.notCounting:
+                raise NotImplementedError("Not implemented yet")
+                # cfg.addTokens(tokens)
 
             count += 1
             if count == max_cfgs:
@@ -45,20 +48,20 @@ if __name__ == "__main__":
     trainer.trainEnc(200)
 
     # TF-IDF
-    # tfidf = TF_IDF(data)
-    # tfIdfVectors = tfidf()
-    
-    # Average
-    # _average = Average(data)
-    # averageVectors = _average()
+    tfIdfVectors = TF_IDF(counts)()
+    print(f"{tfIdfVectors.shape = }")
 
+    # Average
+    # raise NotImplementedError("Averaging is Not implemented yet")
+    averageVectors = Average(counts)()
+    print(f"{averageVectors.shape = }")
 
 
 """
 Things to try:
-Doc2Vec
-LSTM Autoencoder
-TF-IDF
-Attention
-Simple average
+    [ ] - Doc2Vec
+    [~] - LSTM Autoencoder
+    [x] - TF-IDF
+    [~] - Attention
+    [~] - Simple average
 """

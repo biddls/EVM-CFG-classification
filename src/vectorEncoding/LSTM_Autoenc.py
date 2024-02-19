@@ -109,6 +109,7 @@ class LSTM_AutoEnc_Training:
         self.criterion = nn.MSELoss()
 
     def trainEnc(self, epochs_num: int):
+        # todo: losses are going up fix
         """
         Input shape:
         [samples(fixed), steps (varies), features(fixed)]
@@ -136,7 +137,9 @@ class LSTM_AutoEnc_Training:
                 leave=False,
                 desc=f"Epoch {epoch+1}/{self.epochs_num}",
                 position=1,
-                total=len(self.data)
+                total=len(self.data),
+                ncols=0,
+                mininterval=0.1
             )
             # runs through each sample
             for sample, weight in loopTrain:
@@ -153,7 +156,7 @@ class LSTM_AutoEnc_Training:
             train_loss = np.mean(train_losses)
             # loop.set_description(f'TL: {str(train_loss)[:6]}')
             now = dt.datetime.now()
-            print(f' Loss: {str(train_loss)[:6]} | {now.strftime("%H:%M %d/%m/%y")}', end='')
+            print(f'\nLoss: {str(train_loss)[:6]} | {now.strftime("%H:%M %d/%m/%y")}', end='')
 
             if epoch % 10 == 0 and epoch != 0:
                 # saves the model every 10 epochs
@@ -167,9 +170,9 @@ class LSTM_AutoEnc_Training:
 
         freq = list(data.values())
         
-        print(f"Number of training examples: {np.sum(freq)}")
-        print(f"Number now compressed: {len(freq)}")
-        print(f"Compression ratio of: {100 * (np.sum(freq) / len(freq)):.4f}%")
+        print(f"Number of training examples: {np.sum(freq):,.0f}")
+        print(f"Number now compressed: {len(freq):,.0f}")
+        print(f"Compression ratio of: {100 * (1 - (len(freq) / np.sum(freq))):.2f}%")
         
         freq = np.array(freq) / CFGs
         # add e to every element

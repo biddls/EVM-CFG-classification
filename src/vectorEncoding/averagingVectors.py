@@ -1,18 +1,34 @@
+from collections import Counter
 import numpy as np
 import numpy.typing as npt
+from tokeniser import Tokeniser
 
 class Average:
-    def __init__(self, data: list[npt.NDArray[np.bool_]]):
-        self.data = data
-    
-    def __call__(self, *args, **kwargs):
-        return self._average(self.data)
-    
-    def _average(self, data: list[npt.NDArray[np.bool_]]) -> npt.NDArray[np.float64]:
+    data: list[npt.NDArray[np.bool_]]
+    width: int
+
+    def __init__(self, data: Counter[tuple[int | tuple[int, int]]]):
+        """
+        Shape of the data:
+        first level is the list of cfgs (documents)
+        The second level is the list of nodes 
+        The third level is the vector representation of the node
+        """
+        
+        temp = list(data.keys())
+        vectorise = lambda x: Tokeniser.vectoriseNode(x)
+        temp = list(map(vectorise, list(temp)))
+        self.data = temp
+        self.width = self.data[0].shape[1]
+
+    def __call__(self, *args, **kwargs) -> npt.NDArray[np.float64]:
+        return self._average()
+
+    def _average(self) -> npt.NDArray[np.float64]:
         """
         Calculates the average of the data
         """
-        average = np.zeros((len(data), data[0].shape[1]))
-        for i, document in enumerate(data):
+        average = np.zeros((len(self.data), self.width))
+        for i, document in enumerate(self.data):
             average[i] = document.sum(axis=0) / document.shape[0]
         return average
