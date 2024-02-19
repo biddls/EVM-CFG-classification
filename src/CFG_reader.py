@@ -1,3 +1,4 @@
+from collections import Counter
 import json
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -39,13 +40,19 @@ class CFG_Reader:
         # Create a directed graph
         self.graph = nx.DiGraph()
 
+        if len(self.parsedOpcodes) != len(self.data["runtimeCfg"]["nodes"]):
+            raise ValueError("The number of parsed opcodes does not match the number of nodes in the CFG")
+
         # Add nodes
-        for node, parsedOpcode in zip(self.data["runtimeCfg"]["nodes"], self.parsedOpcodes):
+        index = 0
+        for node in self.data["runtimeCfg"]["nodes"]:
             self.graph.add_node(
                 node["offset"],
                 # type=node["type"],
-                parsedOpcode=parsedOpcode,
+                parsedOpcode=self.parsedOpcodes[index],
+                internal_index=index
             )
+            index += 1
 
         # Add edges
         for successor in self.data["runtimeCfg"]["successors"]:
@@ -67,12 +74,6 @@ class CFG_Reader:
             arrowsize=10)
         plt.show()
 
-    def applyVectorEncodings(self) -> None:
-        """
-        Applies vector encoding to the parsed opcodes
-        """
-        ...
-
     def __repr__(self) -> str:
         return self.path
 
@@ -86,13 +87,43 @@ class CFG_Reader:
             self.generateGraph()
         return len(self.graph.edges)
 
-    def getParsedOpcodes(self): # -> list[list[str]]:
+    def getParsedOpcodes(self):
         if self.graph is None:
             self.generateGraph()
         return self.graph.nodes.data()
-    
-    def addTokens(self, tokens: list[list[str | tuple[str, str]]]) -> None:
-        self.tokens = tokens
+
+    def addIndex(self, node: int, index: int) -> None:
+        """
+        Parameters:
+        node: int
+            The node to add the index to
+        index: int
+            The external index to add to the node
+        """
+
+        if self.graph is None:
+            self.generateGraph()
+        self.graph.nodes[node]["index"] = index
+
+    def gen_indexes(
+        self,
+        tokens: list[tuple[int | tuple[int, int]]],
+        counts: Counter[tuple[int | tuple[int, int]]]):
+        """
+        Parameters:
+        tokens: list[tuple[int | tuple[int, int]]]
+            The tokens to be indexed
+        counts: Counter[tuple[int | tuple[int, int]]]
+            The current collection of tokens that have been processed (inc)
+        """
+
+        # check if the number of tokens equals the number of nodes
+        if len(tokens) != len(self.parsedOpcodes):
+            raise ValueError("The number of tokens does not match the number of nodes in the CFG")
+
+        # for each node in the CFG
+        for token in tokens:
+            ...
 
 
 if __name__ == "__main__":

@@ -95,16 +95,8 @@ class Tokeniser:
 
     @staticmethod
     def tokenise(
-        tokens: list[list[str | tuple[str, str]]],
-        counting: bool = False
-        ) -> Counter[
-            tuple[
-                int | tuple[int, int]
-                ]
-            ] | list[
-            tuple[
-                int | tuple[int, int]
-                ]]:
+        tokens: list[list[str | tuple[str, str]]]
+    ) -> list[tuple[int | tuple[int, int]]]:
 
         """
         performs the tokeniseation for each node in the CFG
@@ -118,11 +110,7 @@ class Tokeniser:
             temp = tuple(temp)
             vectors.append(temp) # type: ignore
 
-        if counting is True:
-            return Counter(vectors)
-        else:
-            # print(f"len in tokeniseation: {len(vectors)}")
-            return vectors
+        return vectors
 
     @staticmethod
     def tokeniseNode(byteCodes: list[str | tuple[str, str]]) -> list[str | tuple[str, str]]:

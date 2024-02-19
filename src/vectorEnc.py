@@ -7,33 +7,40 @@ from collections import Counter
 from enum import Enum
 import matplotlib.pyplot as plt
 import numpy as np
+from graphComp.CFG_Vec_reconst import CFG_Vec_reconst
+from CFG_reader import CFG_Reader
 
-if __name__ == "__main__":
-    loader = tokeniser.CFG_Loader(exclusionList="./src/vectorEncoding/cache/conts/*.txt")
+
+def main(
+    tf_idf: bool = False,
+    average: bool = False,
+    lstm: bool = False,
+    max_cfgs: int = 0
+):
     count = 0
-    cfgs = list()
+    cfgs: list[CFG_Reader] = list()
 
     # set to 0 to do all the data
-    max_cfgs = 0
     counts: Counter[tuple[int | tuple[int, int]]] = Counter()
-    countToggle = Enum("enableCounting", {"Counting": True, "notCounting": False}).Counting
+    # countToggle = Enum("enableCounting", {"Counting": True, "notCounting": False}).Counting
+
+    loader = tokeniser.CFG_Loader(exclusionList="./src/vectorEncoding/cache/conts/*.txt")
     loader = tqdm(loader, desc="Loading and encoding CFGs")
     data: dict[str, list[tuple[int | tuple[int, int]]]] = {}
+    # CFG_Vescontruction: CFG_Vec_reconst = CFG_Vec_reconst()
 
     for cfg in loader:
         # print(cfg)
         try:
-            cfgs.append(cfg.addr)
+            cfgs.append(cfg)
             tokens = tokeniser.Tokeniser.preProcessing(cfg)
-            temp_counts = tokeniser.Tokeniser.tokenise(tokens, counting=countToggle.value)
+            temp_counts = tokeniser.Tokeniser.tokenise(tokens)
 
-            if countToggle == countToggle.Counting:
-                if isinstance(counts, Counter):
-                    # adds temp_counts to counts adding the values together
-                    counts.update(temp_counts)
-            elif countToggle == countToggle.notCounting:
-                raise NotImplementedError("Not implemented yet")
-                # cfg.addTokens(tokens)
+            _counts: Counter[tuple[int | tuple[int, int]]] = Counter(temp_counts)
+            counts.update(_counts)
+
+            # todo: add the token indexes from this to the CFG
+            cfg.gen_indexes(temp_counts, counts)
 
             count += 1
             if count == max_cfgs:
@@ -44,47 +51,56 @@ if __name__ == "__main__":
 
     print(f"Compression ratio of: {100 * (1 - (len(counts) / sum(list(counts.values())))):.2f}%")
 
-
     # TF-IDF
-    tfIdfVectors = TF_IDF(counts)()
-    print(f"{tfIdfVectors.shape = }")
+    tfIdfVectors = None
+    if tf_idf:
+        tfIdfVectors = TF_IDF(counts)()
+        print(f"{tfIdfVectors.shape = }")
 
     # Average
-    # raise NotImplementedError("Averaging is Not implemented yet")
-    averageVectors = Average(counts)()
-    print(f"{averageVectors.shape = }")
+    averageVectors = None
+    if average:
+        averageVectors = Average(counts)()
+        print(f"{averageVectors.shape = }")
 
     # LSTM autoencoder
-    # Creating a single set of axes
-    fig, ax = plt.subplots()  # Adjust figsize as needed
+    LSTMEncodings = None
+    if lstm:
+        # Creating a single set of axes
+        _, ax = plt.subplots()  # Adjust figsize as needed
 
-    # Plotting all columns on the same plot
-    for i in [1, 2 ,4 , 8, 16, 32, 64, 128, 256, 512]:
-        trainer = LSTM_AutoEnc_Training(counts, i, count)
-        finalLosses = trainer.trainEnc(200, checkpoints=True, progress=False)
-        np.savetxt(f"./src/vectorEncoding/cache/checkpointsLSTM_Autoenc/width{i}/losses.txt", finalLosses, delimiter=" ")
-        ax.plot(range(len(finalLosses)), finalLosses, label=f'Hidden Dim width: {i}')
+        # Plotting all columns on the same plot
+        for i in [1, 2 ,4 , 8, 16, 32, 64, 128, 256, 512]:
+            trainer = LSTM_AutoEnc_Training(counts, i, count)
+            finalLosses = trainer.trainEnc(200, checkpoints=True, progress=False)
+            np.savetxt(f"./src/vectorEncoding/cache/checkpointsLSTM_Autoenc/width{i}/losses.txt", finalLosses, delimiter=" ")
+            ax.plot(range(len(finalLosses)), finalLosses, label=f'Hidden Dim width: {i}')
 
-    # Adding labels and legend
-    ax.set_title('Multiple Columns on the Same Plot')
-    ax.set_xlabel('Data Points')
-    ax.set_ylabel('Values')
-    ax.legend()
+        # Adding labels and legend
+        ax.set_title('Multiple Columns on the Same Plot')
+        ax.set_xlabel('Data Points')
+        ax.set_ylabel('Values')
+        ax.legend()
 
-    # Display the plot
-    plt.show()
+        # Display the plot
+        plt.show()
 
-    LSTMEncodings = trainer.getEncodings()
-    print(f"{LSTMEncodings.shape = }")
+        LSTMEncodings = trainer.getEncodings()
+        print(f"{LSTMEncodings.shape = }")
 
     shapes = [
-        tfIdfVectors.shape,
-        averageVectors.shape,
-        LSTMEncodings.shape
+        tfIdfVectors.shape if tfIdfVectors is not None else None,
+        averageVectors.shape if averageVectors is not None else None,
+        LSTMEncodings.shape if LSTMEncodings is not None else None
     ]
 
-    if all([shapes[0][0] == shape[0] for shape in shapes]):
-        print("All shapes are equal length")
+    shapes = [shape for shape in shapes if shape is not None]
+
+    if len(shapes) > 1:
+        if all([shapes[0] == shape for shape in shapes]):
+            print("All shapes are equal")
+        else:
+            raise ValueError(f"Shapes are not equal: {shapes}")
 
     # chart the losses from finalLosses
     # plt.plot(finalLosses)
@@ -92,6 +108,8 @@ if __name__ == "__main__":
     # plt.ylabel("Loss")
     # plt.title("Losses over Epochs for LSTM Autoencoder")
     # plt.show()
+
+    return tfIdfVectors, averageVectors, LSTMEncodings
 
 
 """
@@ -102,3 +120,9 @@ Things to try:
     [~] - Attention # Dont think this is going to work
     [X] - Simple average
 """
+
+if __name__ == "__main__":
+    main(
+        tf_idf = True,
+        average = True
+    )
