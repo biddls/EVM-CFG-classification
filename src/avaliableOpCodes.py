@@ -158,3 +158,8 @@ otherTokens = [
 otherTokens += [f"<NUMBER_{i}>" for i in range(20)]
 
 specialTokens: dict[str, int] = {key: i for i, key in enumerate(otherTokens)}
+
+if __name__ == "__main__":
+    print(len(AvaliableOpCodes))
+    print(len(specialTokens))
+    print(len(AvaliableOpCodes) + len(specialTokens))

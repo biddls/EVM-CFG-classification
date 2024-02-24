@@ -26,7 +26,7 @@ def main(
 
     loader = tokeniser.CFG_Loader(exclusionList="./src/vectorEncoding/cache/conts/*.txt")
     loader = tqdm(loader, desc="Loading and encoding CFGs")
-    data: dict[str, list[tuple[int | tuple[int, int]]]] = {}
+    # data: dict[str, list[tuple[int | tuple[int, int]]]] = {}
     # CFG_Vescontruction: CFG_Vec_reconst = CFG_Vec_reconst()
 
     for cfg in loader:
@@ -34,13 +34,15 @@ def main(
         try:
             cfgs.append(cfg)
             tokens = tokeniser.Tokeniser.preProcessing(cfg)
+            # print(f"{len(tokens) = }")
             temp_counts = tokeniser.Tokeniser.tokenise(tokens)
+            # print(f"{len(temp_counts) = }")
 
             _counts: Counter[tuple[int | tuple[int, int]]] = Counter(temp_counts)
             counts.update(_counts)
 
             # todo: add the token indexes from this to the CFG
-            cfg.gen_indexes(temp_counts, counts)
+            # cfg.gen_indexes(temp_counts, counts)
 
             count += 1
             if count == max_cfgs:

@@ -36,6 +36,16 @@ class CFG_Reader:
             ]
             self.parsedOpcodes.append(temp)
 
+    def hasInvalidOpcodes(self) -> bool:
+        """
+        Checks if the CFG has invalid opcodes
+        """
+        for node in self.parsedOpcodes:
+            for opcode in node:
+                if opcode == "INVALID":
+                    return True
+        return False
+
     def generateGraph(self) -> None:
         # Create a directed graph
         self.graph = nx.DiGraph()
@@ -94,6 +104,7 @@ class CFG_Reader:
 
     def addIndex(self, node: int, index: int) -> None:
         """
+        Links the index of the node with the external index of the compressed link
         Parameters:
         node: int
             The node to add the index to
@@ -119,17 +130,26 @@ class CFG_Reader:
 
         # check if the number of tokens equals the number of nodes
         if len(tokens) != len(self.parsedOpcodes):
+            print(len(tokens), len(self.parsedOpcodes))
+            print(self.hasInvalidOpcodes())
             raise ValueError("The number of tokens does not match the number of nodes in the CFG")
 
         # for each node in the CFG
-        for token in tokens:
+        temp = {x: i for i, x in enumerate(counts.keys())}
+        for index, token in enumerate(tokens):
             ...
+            """
+            Given the list of tokens:
+                get the index of the decompressed index of the token
+                and write that to the graph for future referencing
+            """
 
 
 if __name__ == "__main__":
+    from tqdm import tqdm
     # Get all the JSON files in the directory
     files = glob("./src/ControlFlowGraphs/evmOut/*.json")
-    for file in files:
+    for file in tqdm(files):
         cfg = CFG_Reader(file)
         total = 0
         for opCode in cfg.parsedOpcodes:
