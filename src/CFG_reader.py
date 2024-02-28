@@ -54,15 +54,13 @@ class CFG_Reader:
             raise ValueError("The number of parsed opcodes does not match the number of nodes in the CFG")
 
         # Add nodes
-        index = 0
-        for node in self.data["runtimeCfg"]["nodes"]:
+        for index, node in enumerate(self.data["runtimeCfg"]["nodes"]):
             self.graph.add_node(
                 node["offset"],
                 # type=node["type"],
                 parsedOpcode=self.parsedOpcodes[index],
-                internal_index=index
+                # internal_index=index
             )
-            index += 1
 
         # Add edges
         for successor in self.data["runtimeCfg"]["successors"]:
@@ -70,6 +68,9 @@ class CFG_Reader:
             to_nodes = successor["to"]
             for to_node in to_nodes:
                 self.graph.add_edge(from_node, to_node)
+
+        self.graph = nx.freeze(self.graph)
+        self.indexToNode = {i: x for i, x in enumerate(self.graph.nodes)}
 
     def drawGraph(self) -> None:
         if self.graph is None:
@@ -102,7 +103,7 @@ class CFG_Reader:
             self.generateGraph()
         return self.graph.nodes.data()
 
-    def addIndex(self, node: int, index: int) -> None:
+    def addIndex(self, nodeIndex: int, index: int) -> None:
         """
         Links the index of the node with the external index of the compressed link
         Parameters:
@@ -111,9 +112,10 @@ class CFG_Reader:
         index: int
             The external index to add to the node
         """
-
-        if self.graph is None:
+        if not hasattr(self, 'graph'):
             self.generateGraph()
+
+        node = self.indexToNode[nodeIndex]
         self.graph.nodes[node]["index"] = index
 
     def gen_indexes(
@@ -121,6 +123,8 @@ class CFG_Reader:
         tokens: list[tuple[int | tuple[int, int]]],
         counts: Counter[tuple[int | tuple[int, int]]]):
         """
+        Given the tokens and the counts, generate the indexes for the graph
+        To allow referencing of the index of the nodes to the main list of tokens
         Parameters:
         tokens: list[tuple[int | tuple[int, int]]]
             The tokens to be indexed
@@ -136,13 +140,17 @@ class CFG_Reader:
 
         # for each node in the CFG
         temp = {x: i for i, x in enumerate(counts.keys())}
-        for index, token in enumerate(tokens):
-            ...
-            """
-            Given the list of tokens:
-                get the index of the decompressed index of the token
-                and write that to the graph for future referencing
-            """
+        """
+        Given the list of tokens:
+            get the index of the decompressed index of the token
+            and write that to the graph for future referencing
+        ! Note checks have been made to ensure that:
+        !   "tokens" lines up with "self.parsedOpcodes"
+        """
+        globalIndes = list(map(lambda x: temp[x], tokens))
+        # apply indexes
+        for i, index in enumerate(globalIndes):
+            self.addIndex(i, index)
 
 
 if __name__ == "__main__":

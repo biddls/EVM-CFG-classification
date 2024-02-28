@@ -83,8 +83,8 @@ class Tokeniser:
                     if len(opcode) == 2:
                         nodeTokens.append(opcode)
                 else:
-                    if opcode == "INVALID":
-                        continue
+                    # if opcode == "INVALID":
+                    #     continue
                     nodeTokens.append(opcode)
             tokens.append(nodeTokens)
         tokens.append(["EXIT BLOCK"])

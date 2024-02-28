@@ -4,10 +4,8 @@ from vectorEncoding.TF_IDF import TF_IDF
 from vectorEncoding.averagingVectors import Average
 from tqdm import tqdm
 from collections import Counter
-from enum import Enum
 import matplotlib.pyplot as plt
 import numpy as np
-from graphComp.CFG_Vec_reconst import CFG_Vec_reconst
 from CFG_reader import CFG_Reader
 
 
@@ -15,20 +13,17 @@ def main(
     tf_idf: bool = False,
     average: bool = False,
     lstm: bool = False,
-    max_cfgs: int = 0
+    max_cfgs: int = 0 # set to 0 to do all the data
 ):
     count = 0
     cfgs: list[CFG_Reader] = list()
 
-    # set to 0 to do all the data
     counts: Counter[tuple[int | tuple[int, int]]] = Counter()
-    # countToggle = Enum("enableCounting", {"Counting": True, "notCounting": False}).Counting
 
     loader = tokeniser.CFG_Loader(exclusionList="./src/vectorEncoding/cache/conts/*.txt")
     loader = tqdm(loader, desc="Loading and encoding CFGs")
-    # data: dict[str, list[tuple[int | tuple[int, int]]]] = {}
-    # CFG_Vescontruction: CFG_Vec_reconst = CFG_Vec_reconst()
 
+    # loads in and pre processes the CFGs
     for cfg in loader:
         # print(cfg)
         try:
@@ -41,8 +36,7 @@ def main(
             _counts: Counter[tuple[int | tuple[int, int]]] = Counter(temp_counts)
             counts.update(_counts)
 
-            # todo: add the token indexes from this to the CFG
-            # cfg.gen_indexes(temp_counts, counts)
+            cfg.gen_indexes(temp_counts, counts)
 
             count += 1
             if count == max_cfgs:

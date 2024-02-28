@@ -1,4 +1,5 @@
 opCodes: set[str] = {
+    "INVALID",
     "STOP",
     "ADD",
     "MUL",
