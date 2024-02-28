@@ -15,7 +15,7 @@ class graphClassification:
     tf_idf: npt.NDArray
     average: npt.NDArray
     lstm: npt.NDArray
-    
+
     def __init__(
         self,
         CFGs: list[CFG_Reader],
@@ -33,3 +33,13 @@ class graphClassification:
         if lstm is not None:
             self.lstm = lstm
 
+    def loadClasses(self):
+        """
+        Load classes from file
+        """
+        with open(self.pathToTypes, 'r') as file:
+            self.classes = file.read().splitlines()
+
+
+if __name__ == "__main__":
+    ...

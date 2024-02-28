@@ -18,7 +18,7 @@ Load:
 """
 
 device = torch.device('cuda')
-
+# todo add chaching of pre computed models to simply re-run
 class Encoder(nn.Module):
     def __init__(self, n_features, embedding_dim):
         super(Encoder, self).__init__()

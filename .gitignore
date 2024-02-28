@@ -10,3 +10,4 @@ __pycache__/
 .pytest_cache
 *.db
 src/vectorEncoding/cache
+*.csv
