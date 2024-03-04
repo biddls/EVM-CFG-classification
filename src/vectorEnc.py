@@ -110,14 +110,13 @@ def main(
     # graph labeling
     gc = graphClassification(
         CFGs=cfgs,
-        pathToTypes="./src/addressTags.csv",
+        pathToTypes="./addressTags.csv",
         tf_idf=tfIdfVectors,
         average=averageVectors,
         lstm=LSTMEncodings
     )
 
     return tfIdfVectors, averageVectors, LSTMEncodings
-
 
 """
 Things to try:
@@ -131,5 +130,6 @@ Things to try:
 if __name__ == "__main__":
     main(
         tf_idf = True,
-        average = True
+        average = True,
+        max_cfgs=5
     )

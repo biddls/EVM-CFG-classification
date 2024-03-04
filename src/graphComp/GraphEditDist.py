@@ -26,6 +26,7 @@ class graphClassification:
         average: npt.NDArray | None = None,
         lstm: npt.NDArray | None = None,
         ) -> None:
+        # Load in all data
         self.CFGs = CFGs
         self.pathToTypes = pathToTypes
         if tf_idf is not None:
@@ -34,14 +35,27 @@ class graphClassification:
             self.average = average
         if lstm is not None:
             self.lstm = lstm
+        
+        # load in classes and labels
+        self.loadClasses()
 
     def loadClasses(self):
         """
         Load classes from file
         """
-        self.df = pd.read_csv(self.pathToTypes)
-        print(self.df.head())
+        # load CSV
+        df = pd.read_csv(self.pathToTypes)
+        print(df.head())
+        print(f"Shape of df: {df.shape}")
 
+        # Process it to get classes
+        df = df.dropna(subset=["tag"])
 
-if __name__ == "__main__":
-    ...
+        # Get unique classes
+        classes = df["tag"].unique()
+        print(f"Number of unique classes: {len(classes)}")
+
+        print(f"Shape of df: {df.shape}")
+        print(df.head())
+        
+        self.df = df
