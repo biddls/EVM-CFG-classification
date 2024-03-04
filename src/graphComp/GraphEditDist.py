@@ -3,8 +3,9 @@ import numpy as np
 from numpy import typing as npt
 from matplotlib import pyplot as plt
 from CFG_reader import CFG_Reader
-
+import pandas as pd
 # nx.graph_edit_distance
+
 
 class graphClassification:
     """
@@ -15,6 +16,7 @@ class graphClassification:
     tf_idf: npt.NDArray
     average: npt.NDArray
     lstm: npt.NDArray
+    df: pd.DataFrame
 
     def __init__(
         self,
@@ -37,8 +39,8 @@ class graphClassification:
         """
         Load classes from file
         """
-        with open(self.pathToTypes, 'r') as file:
-            self.classes = file.read().splitlines()
+        self.df = pd.read_csv(self.pathToTypes)
+        print(self.df.head())
 
 
 if __name__ == "__main__":

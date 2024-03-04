@@ -3,3 +3,4 @@ matplotlib
 networkx
 torch -i https://download.pytorch.org/whl/cu121
 numpy
+pandas

@@ -7,6 +7,7 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import numpy as np
 from CFG_reader import CFG_Reader
+from graphComp.GraphEditDist import graphClassification
 
 
 def main(
@@ -47,6 +48,7 @@ def main(
 
     print(f"Compression ratio of: {100 * (1 - (len(counts) / sum(list(counts.values())))):.2f}%")
 
+    # Getting vectors
     # TF-IDF
     tfIdfVectors = None
     if tf_idf:
@@ -104,6 +106,15 @@ def main(
     # plt.ylabel("Loss")
     # plt.title("Losses over Epochs for LSTM Autoencoder")
     # plt.show()
+    
+    # graph labeling
+    gc = graphClassification(
+        CFGs=cfgs,
+        pathToTypes="./src/addressTags.csv",
+        tf_idf=tfIdfVectors,
+        average=averageVectors,
+        lstm=LSTMEncodings
+    )
 
     return tfIdfVectors, averageVectors, LSTMEncodings
 
