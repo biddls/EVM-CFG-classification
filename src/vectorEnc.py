@@ -110,7 +110,8 @@ def main(
     # graph labeling
     gc = graphClassification(
         CFGs=cfgs,
-        pathToTypes="./addressTags.csv",
+        pathToTags="./addressTags.csv",
+        pathToLabels="./labels.json",
         tf_idf=tfIdfVectors,
         average=averageVectors,
         lstm=LSTMEncodings
