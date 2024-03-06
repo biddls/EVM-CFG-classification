@@ -117,6 +117,8 @@ def main(
         lstm=LSTMEncodings
     )
 
+    gc.getGraphLabels()
+
     return tfIdfVectors, averageVectors, LSTMEncodings
 
 """
