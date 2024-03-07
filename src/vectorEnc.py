@@ -112,9 +112,9 @@ def main(
         CFGs=cfgs,
         pathToTags="./addressTags.csv",
         pathToLabels="./labels.json",
-        tf_idf=tfIdfVectors,
-        average=averageVectors,
-        lstm=LSTMEncodings
+        _tf_idf=tfIdfVectors,
+        _average=averageVectors,
+        _lstm=LSTMEncodings
     )
 
     gc.getGraphLabels()

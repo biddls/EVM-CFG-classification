@@ -1,5 +1,5 @@
 import networkx as nx
-# import numpy as np
+import numpy as np
 from numpy import typing as npt
 # from matplotlib import pyplot as plt
 from CFG_reader import CFG_Reader
@@ -11,6 +11,7 @@ from difflib import SequenceMatcher
 from collections import Counter
 from numpy import dot
 from numpy.linalg import norm
+from functools import lru_cache
 import sys
 sys.setrecursionlimit(1500)
 
@@ -22,31 +23,38 @@ class graphClassification:
     CFGs: list[CFG_Reader]
     pathToTypes: str
     pathToLabels: str
-    tf_idf: npt.NDArray
-    average: npt.NDArray
-    lstm: npt.NDArray
     addrLabels: dict[str, str]
+    
+    tf_idf: npt.NDArray
+    tf_idfVectors: npt.NDArray[np.bool_]
+    average: npt.NDArray
+    averageVectors: npt.NDArray[np.bool_]
+    lstm: npt.NDArray
+    lstmVectors: npt.NDArray[np.bool_]
 
     def __init__(
         self,
         CFGs: list[CFG_Reader],
         pathToTags: str,
         pathToLabels: str,
-        tf_idf: npt.NDArray | None = None,
-        average: npt.NDArray | None = None,
-        lstm: npt.NDArray | None = None,
+        _tf_idf: npt.NDArray | None = None,
+        _average: npt.NDArray | None = None,
+        _lstm: npt.NDArray | None = None,
     ) -> None:
 
         # Load in all data
         self.CFGs = CFGs
         self.pathToTypes = pathToTags
         self.pathToLabels = pathToLabels
-        if tf_idf is not None:
-            self.tf_idf = tf_idf
-        if average is not None:
-            self.average = average
-        if lstm is not None:
-            self.lstm = lstm
+        if _tf_idf is not None:
+            self.tf_idf = _tf_idf
+            self.tf_idfVectors = self.cosine_similarity_np(_tf_idf)
+        if _average is not None:
+            self.average = _average
+            self.averageVectors = self.cosine_similarity_np(_average)
+        if _lstm is not None:
+            self.lstm = _lstm
+            self.lstmVectors = self.cosine_similarity_np(_lstm)
 
         # load in classes and labels
         self.loadClasses()
@@ -140,7 +148,10 @@ class graphClassification:
 
         node1Index = node1["index"]
         node2Index = node2["index"]
+        return self.getSimilarity(node1Index, node2Index)
 
+    @lru_cache(maxsize=None)
+    def getSimilarity(self, node1Index: int, node2Index: int) -> bool:
         # looks up the vectors for each node
         node1Vector = self.tf_idf[node1Index]
         node2Vector = self.tf_idf[node2Index]
@@ -153,23 +164,42 @@ class graphClassification:
         else:
             return False
 
-    def getGraphSimilarity(self, graph1: CFG_Reader, graph2: CFG_Reader):
+    def getGraphSimilarity(self, CFG_1: CFG_Reader, CFG_2: CFG_Reader):
         """
         Get the similarity between two graphs
         """
-        print(f"Size of graph1: {len(graph1.graph.nodes)}")
-        print(f"Size of graph2: {len(graph2.graph.nodes)}")
+        print(f"Size of graph1: {len(CFG_1.graph.nodes)}")
+        print(f"Size of graph2: {len(CFG_2.graph.nodes)}")
+        maxNodeCombi = len(CFG_1.graph.nodes) * len(CFG_2.graph.nodes)
+        print(f"Max number of node combinations: {maxNodeCombi}")
 
-        dist = nx.optimize_graph_edit_distance(
-            graph1.graph,
-            graph2.graph,
-            node_match=self.nodeSimilarity)
+        # # ! this wont work as its too slow
+        # dist = nx.optimize_graph_edit_distance(
+        #     graph1.graph,
+        #     graph2.graph,
+        #     # node_match=lambda x, y: True)
+        #     node_match=self.nodeSimilarity)
 
-        for temp in dist:
-            print(temp)
-            minDist = temp
+        # for temp in dist:
+        #     print(temp)
+        #     minDist = temp
 
-        print(f"Graph edit distance: {minDist}")
+        # print(f"Graph edit distance: {minDist}")
+
+        # Doing a simple comparison of the nodes
+        # Get the nodes
+        nodes1: map[CFG_Node] = map(lambda x: CFG_1.graph.nodes[x], list(CFG_1.graph.nodes))
+        nodes2: map[CFG_Node] = map(lambda x: CFG_2.graph.nodes[x], list(CFG_2.graph.nodes))
+
+        # get only the external indexes from the nodes using map
+        # print(nodes1[0])
+        nodeIndexesTEMP1 = list(map(lambda x: x["index"], nodes1))
+        nodeIndexesTEMP2 = list(map(lambda x: x["index"], nodes2))
+
+        # get the similarity between the nodes using tf-idf
+        indexMatrix = np.ix_(nodeIndexesTEMP1, nodeIndexesTEMP2)
+        result_matrix: npt.NDArray[np.bool_] = self.tf_idfVectors.T[indexMatrix]
+        print(result_matrix.shape)
 
         exit(0)
 
@@ -180,3 +210,11 @@ class graphClassification:
         cfg1 = self.CFGs[0]
         cfg2 = self.CFGs[1]
         self.getGraphSimilarity(cfg1, cfg2)
+
+    def cosine_similarity_np(self, matrix: npt.NDArray[np.float64], cutoff: float = 0.8) -> npt.NDArray[np.bool_]:
+        dot_product = np.dot(matrix, matrix.T)
+        norm_matrix = np.linalg.norm(matrix, axis=1, keepdims=True)
+        cosine_similarities = dot_product / (norm_matrix * norm_matrix.T)
+        # apply cutoff
+        cosine_similarities = cosine_similarities > cutoff
+        return cosine_similarities
