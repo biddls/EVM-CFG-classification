@@ -3,6 +3,7 @@ import json
 import networkx as nx
 import matplotlib.pyplot as plt
 from glob import glob
+from typing import Self
 
 
 class CFG_Reader:
@@ -14,12 +15,17 @@ class CFG_Reader:
     addr: str
     parsedOpcodes: list[list[str]]
     tokens: list[list[str | tuple[str, str]]]
+    label: str
 
     def __init__(self, path: str) -> None:
         self.path = path
         self.addr = path.split("\\")[-1].split(".")[0]
-        # Load JSON data from file
-        with open(path, "r") as json_file:
+
+    def load(self) -> None:
+        """
+        Load JSON data from file
+        """
+        with open(self.path, "r") as json_file:
             self.data: dict = json.load(json_file)
 
         # Get the opcodes from the JSON file
@@ -35,6 +41,9 @@ class CFG_Reader:
                 opcode.split(" ", maxsplit=1)[1] for opcode in parsedOpcodes[i]
             ]
             self.parsedOpcodes.append(temp)
+        
+        # if self.addr == "0x0000000000007f150bd6f54c40a34d7c3d5e9f56":
+        #     print(self.parsedOpcodes[-13:])
 
     def hasInvalidOpcodes(self) -> bool:
         """
@@ -66,11 +75,18 @@ class CFG_Reader:
         for successor in self.data["runtimeCfg"]["successors"]:
             from_node = successor["from"]
             to_nodes = successor["to"]
+            if from_node not in self.graph.nodes:
+                continue
             for to_node in to_nodes:
+                if to_node not in self.graph.nodes:
+                    continue
                 self.graph.add_edge(from_node, to_node)
 
         self.graph = nx.freeze(self.graph)
         self.indexToNode = {i: x for i, x in enumerate(self.graph.nodes)}
+
+        # if self.addr == "0x0000000000007f150bd6f54c40a34d7c3d5e9f56":
+        #     print(list(self.graph.nodes.data())[-20:])
 
     def drawGraph(self) -> None:
         if self.graph is None:
@@ -92,6 +108,9 @@ class CFG_Reader:
         if self.graph is None:
             self.generateGraph()
         return len(self.graph.nodes)
+
+    def __len__(self) -> int:
+        return self.nodeCount()
 
     def edgeCount(self) -> int:
         if self.graph is None:
@@ -116,7 +135,7 @@ class CFG_Reader:
             self.generateGraph()
 
         node = self.indexToNode[nodeIndex]
-        self.graph.nodes[node]["index"] = index
+        self.graph.nodes[node]["extIndex"] = index
 
     def gen_indexes(
         self,
@@ -152,6 +171,16 @@ class CFG_Reader:
         for i, index in enumerate(globalIndes):
             self.addIndex(i, index)
 
+    def __eq__(self, __value: Self) -> bool:
+        if not isinstance(__value, CFG_Reader):
+            return False
+        return self.addr == __value.addr
+
+    def setLabel(self, label: str) -> None:
+        """
+        Set the label of the CFG
+        """
+        self.label = label
 
 if __name__ == "__main__":
     from tqdm import tqdm

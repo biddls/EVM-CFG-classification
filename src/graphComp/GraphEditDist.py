@@ -1,19 +1,19 @@
-import networkx as nx
+# import networkx as nx
 import numpy as np
 from numpy import typing as npt
-# from matplotlib import pyplot as plt
 from CFG_reader import CFG_Reader
 import pandas as pd
 import json
 from tqdm import tqdm
-from graphComp.nodeDict import CFG_Node
-from difflib import SequenceMatcher
-from collections import Counter
-from numpy import dot
-from numpy.linalg import norm
-from functools import lru_cache
-import sys
-sys.setrecursionlimit(1500)
+# from graphComp.nodeDict import CFG_Node
+# from difflib import SequenceMatcher
+# from collections import Counter
+from itertools import permutations
+# from numpy import dot
+# from numpy.linalg import norm
+from math import factorial
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics.pairwise import euclidean_distances
 
 
 class graphClassification:
@@ -26,11 +26,11 @@ class graphClassification:
     addrLabels: dict[str, str]
     
     tf_idf: npt.NDArray
-    tf_idfVectors: npt.NDArray[np.bool_]
+    tf_idfVectors: npt.NDArray[np.float_]
     average: npt.NDArray
-    averageVectors: npt.NDArray[np.bool_]
+    averageVectors: npt.NDArray[np.float_]
     lstm: npt.NDArray
-    lstmVectors: npt.NDArray[np.bool_]
+    lstmVectors: npt.NDArray[np.float_]
 
     def __init__(
         self,
@@ -58,6 +58,9 @@ class graphClassification:
 
         # load in classes and labels
         self.loadClasses()
+
+        # set the classes to the CFGs
+        self.setClassesToCFGs()
 
     def loadClasses(self):
         """
@@ -103,7 +106,7 @@ class graphClassification:
         # label the address using the tags
         addrLabels: dict[str, str] = {}
         # label the tags
-        for addr, _tags in tqdm(tags.items()):
+        for addr, _tags in tags.items():
             # Get the tags
             _tags = list(set(_tags))
             _tags = list(
@@ -140,81 +143,188 @@ class graphClassification:
                 continue
 
         self.addrLabels = addrLabels
+        # print(f"Number of addresses with labels: {len(addrLabels)}")
 
-    def nodeSimilarity(self, node1: CFG_Node, node2: CFG_Node) -> bool:
+    def setClassesToCFGs(self):
         """
-        Get the similarity between two nodes
+        Takes the labels found for the different classes
+        and writes them to the CFGs stored
         """
+        for CFG in self.CFGs:
+            addr = CFG.addr
+            try:
+                CFG.label = self.addrLabels[addr]
+            except KeyError:
+                CFG.label = "unknown"
 
-        node1Index = node1["index"]
-        node2Index = node2["index"]
-        return self.getSimilarity(node1Index, node2Index)
+    # def nodeSimilarity(self, node1: CFG_Node, node2: CFG_Node) -> bool:
+    #     """
+    #     Get the similarity between two nodes
+    #     """
 
-    @lru_cache(maxsize=None)
-    def getSimilarity(self, node1Index: int, node2Index: int) -> bool:
-        # looks up the vectors for each node
-        node1Vector = self.tf_idf[node1Index]
-        node2Vector = self.tf_idf[node2Index]
+    #     node1Index = node1["index"]
+    #     node2Index = node2["index"]
+    #     return self.getSimilarity(node1Index, node2Index)
 
-        cos_sim = dot(node1Vector, node2Vector)/(norm(node1Vector)*norm(node2Vector))
+    # def getSimilarity(self, node1Index: int, node2Index: int) -> bool:
+    #     # looks up the vectors for each node
+    #     node1Vector = self.tf_idf[node1Index]
+    #     node2Vector = self.tf_idf[node2Index]
 
-        # print(f"cosine similarity: {cos_sim}")
-        if cos_sim > 0.8:
-            return True
-        else:
-            return False
+    #     cos_sim = dot(node1Vector, node2Vector)/(norm(node1Vector)*norm(node2Vector))
 
-    def getGraphSimilarity(self, CFG_1: CFG_Reader, CFG_2: CFG_Reader):
+    #     # print(f"cosine similarity: {cos_sim}")
+    #     if cos_sim > 0.8:
+    #         return True
+    #     else:
+    #         return False
+
+    def getGraphSimilarity(self, CFG_1: CFG_Reader, CFG_2: CFG_Reader) -> float:
         """
         Get the similarity between two graphs
         """
-        print(f"Size of graph1: {len(CFG_1.graph.nodes)}")
-        print(f"Size of graph2: {len(CFG_2.graph.nodes)}")
-        maxNodeCombi = len(CFG_1.graph.nodes) * len(CFG_2.graph.nodes)
-        print(f"Max number of node combinations: {maxNodeCombi}")
-
-        # # ! this wont work as its too slow
-        # dist = nx.optimize_graph_edit_distance(
-        #     graph1.graph,
-        #     graph2.graph,
-        #     # node_match=lambda x, y: True)
-        #     node_match=self.nodeSimilarity)
-
-        # for temp in dist:
-        #     print(temp)
-        #     minDist = temp
-
-        # print(f"Graph edit distance: {minDist}")
-
-        # Doing a simple comparison of the nodes
         # Get the nodes
-        nodes1: map[CFG_Node] = map(lambda x: CFG_1.graph.nodes[x], list(CFG_1.graph.nodes))
-        nodes2: map[CFG_Node] = map(lambda x: CFG_2.graph.nodes[x], list(CFG_2.graph.nodes))
-
-        # get only the external indexes from the nodes using map
-        # print(nodes1[0])
-        nodeIndexesTEMP1 = list(map(lambda x: x["index"], nodes1))
-        nodeIndexesTEMP2 = list(map(lambda x: x["index"], nodes2))
+        nodes1: list[int] = [x[1] for x in CFG_1.graph.nodes(data='extIndex')] # type: ignore
+        nodes2: list[int] = [x[1] for x in CFG_2.graph.nodes(data='extIndex')] # type: ignore
 
         # get the similarity between the nodes using tf-idf
-        indexMatrix = np.ix_(nodeIndexesTEMP1, nodeIndexesTEMP2)
-        result_matrix: npt.NDArray[np.bool_] = self.tf_idfVectors.T[indexMatrix]
-        print(result_matrix.shape)
+        indexMatrix = np.ix_(nodes1, nodes2)
+        result_matrix: npt.NDArray[np.float_] = self.lstmVectors.T[indexMatrix]
 
-        exit(0)
+        return float(np.average(result_matrix))
 
     def getGraphLabels(self):
         """
         generates the labels for the graphs
         """
-        cfg1 = self.CFGs[0]
-        cfg2 = self.CFGs[1]
-        self.getGraphSimilarity(cfg1, cfg2)
+        pairs = permutations(range(len(self.CFGs)), 2)
+        lenPairs = int(factorial(len(self.CFGs))/factorial(len(self.CFGs)-2))
+        pairs = tqdm(pairs, total=lenPairs, smoothing=0)
 
-    def cosine_similarity_np(self, matrix: npt.NDArray[np.float64], cutoff: float = 0.8) -> npt.NDArray[np.bool_]:
+        similarityMatrix = np.identity(len(self.CFGs))
+
+        # todo: table is mirrored so we only need to calculate half of it
+        for pair1, pair2 in pairs:
+            graph1 = self.CFGs[pair1]
+            graph2 = self.CFGs[pair2]
+            similarity = self.getGraphSimilarity(graph1, graph2)
+            similarityMatrix[pair1, pair2] = similarity
+
+        from matplotlib import pyplot as plt
+
+        plt.imshow(similarityMatrix)
+        plt.colorbar
+        plt.savefig("temp.png")
+
+        # get labels for the graphs and their corresponding addresses
+        # for cfg in self.CFGs:
+        #     print(f"address: {cfg.addr}, label: {cfg.label}")
+
+        labels = [cfg.label for cfg in self.CFGs]
+
+        defiIndces = [i for i, x in enumerate(labels) if x == "defi"]
+        nftIndces = [i for i, x in enumerate(labels) if x == "nft"]
+        erc20Indces = [i for i, x in enumerate(labels) if x == "erc20"]
+        print(f"defi: {len(defiIndces)}, nft: {len(nftIndces)}, erc20: {len(erc20Indces)}")
+
+        defiTestIndces = defiIndces[:int(len(defiIndces)/5)]
+        defiTrainIndces = defiIndces[int(len(defiIndces)/5):]
+
+        nftTestIndces = nftIndces[:int(len(nftIndces)/5)]
+        nftTrainIndces = nftIndces[int(len(nftIndces)/5):]
+        
+        erc20TestIndces = erc20Indces[:int(len(erc20Indces)/5)]
+        erc20TrainIndces = erc20Indces[int(len(erc20Indces)/5):]
+
+        testIndces = defiTestIndces + nftTestIndces + erc20TestIndces
+        trueLabels = [self.CFGs[i].label for i in testIndces]
+        predLabels = list()
+
+        for i in testIndces:
+            # if cfg.label != "unknown":
+            #     continue
+            # print(similarityMatrix[i, defiTrainIndces].shape)
+            # print(similarityMatrix[i, nftTrainIndces].shape)
+            # print(similarityMatrix[i, erc20TrainIndces].shape)
+            # print(np.max(similarityMatrix[i, defiTrainIndces]))
+            # print(np.max(similarityMatrix[i, nftTrainIndces]))
+            # print(np.max(similarityMatrix[i, erc20TrainIndces]))
+            # exit(0)
+            defiSim  = np.average(similarityMatrix[i, defiTrainIndces])
+            nftSim  = np.average(similarityMatrix[i, nftTrainIndces])
+            erc20Sim  = np.average(similarityMatrix[i, erc20TrainIndces])
+
+
+            # cfg = self.CFGs[i]
+
+            # write the maximum to the cfg
+            if defiSim > nftSim and defiSim > erc20Sim:
+                predLabels.append("defi")
+                print(f"defi: {defiSim}")
+            elif nftSim > defiSim and nftSim > erc20Sim:
+                predLabels.append("nft")
+                print(f"nft: {nftSim}")
+            elif erc20Sim > defiSim and erc20Sim > nftSim:
+                predLabels.append("erc20")
+                print(f"erc20: {erc20Sim}")
+
+        confMatrix = confusion_matrix(trueLabels, predLabels, labels=["defi", "nft", "erc20"])
+        print(confMatrix)
+
+        # plot the confusion matrix
+        # fig, ax = plt.subplots()
+        # cax = ax.matshow(confMatrix, cmap=plt.cm.Blues) # type: ignore
+
+        # # Add labels
+        # # ax.set_xlabel(["defi", "nft", "erc20"])
+        # # ax.set_ylabel(["defi", "nft", "erc20"])
+
+        # # Add color bar
+        # fig.colorbar(cax)
+
+        # # Save the plot
+        # plt.savefig('confusion_matrix.png')
+        
+        disp = ConfusionMatrixDisplay(confMatrix , display_labels=["defi", "nft", "erc20"])
+
+        disp.plot()
+        plt.savefig('confusion_matrix.png')
+
+    def cosine_similarity_np(self, matrix: npt.NDArray[np.float_]) -> npt.NDArray[np.float_]:
         dot_product = np.dot(matrix, matrix.T)
         norm_matrix = np.linalg.norm(matrix, axis=1, keepdims=True)
         cosine_similarities = dot_product / (norm_matrix * norm_matrix.T)
         # apply cutoff
-        cosine_similarities = cosine_similarities > cutoff
+        # cosine_similarities = cosine_similarities > cutoff
         return cosine_similarities
+
+    def euclideanDistance(self, matrix: np.ndarray) -> np.ndarray:
+        """
+        Calculates the Euclidean distance between points in a matrix.
+
+        Parameters:
+        - matrix: A numpy array of shape (n, m) containing n points with m dimensions.
+
+        Returns:
+        - distances: A numpy array of shape (n, n) containing the pairwise Euclidean distances between points.
+        """
+        # Calculate squared distances
+        # print(matrix)
+        dist = euclidean_distances(matrix, squared=True) / matrix.shape[1]
+        return dist
+    
+    def dotProduct(self, matrix: np.ndarray) -> np.ndarray:
+        """
+        Calculates the dot product between points in a matrix.
+
+        Parameters:
+        - matrix: A numpy array of shape (n, m) containing n points with m dimensions.
+
+        Returns:
+        - distances: A numpy array of shape (n, n) containing the pairwise dot products between points.
+        """
+        # Calculate squared distances
+        dist = np.dot(matrix, matrix.T)
+        print(matrix.shape)
+        exit(0)
+        return dist / matrix.shape[1]

@@ -12,3 +12,4 @@ __pycache__/
 src/vectorEncoding/cache
 *.csv
 test.py
+*.png

@@ -15,11 +15,23 @@ def main(
     average: bool = False,
     lstm: bool = False,
     max_cfgs: int = 0 # set to 0 to do all the data
-):
+) -> None:
     count = 0
     cfgs: list[CFG_Reader] = list()
 
     counts: Counter[tuple[int | tuple[int, int]]] = Counter()
+
+    # get the list of the CFG addrs which have labels
+    gc = graphClassification(
+        CFGs=cfgs,
+        pathToTags="./addressTags.csv",
+        pathToLabels="./labels.json",
+        _tf_idf=None,
+        _average=None,
+        _lstm=None
+    )
+    labels = gc.addrLabels
+    del gc
 
     loader = tokeniser.CFG_Loader(exclusionList="./src/vectorEncoding/cache/conts/*.txt")
     loader = tqdm(loader, desc="Loading and encoding CFGs")
@@ -28,20 +40,22 @@ def main(
     for cfg in loader:
         # print(cfg)
         try:
-            cfgs.append(cfg)
-            tokens = tokeniser.Tokeniser.preProcessing(cfg)
-            # print(f"{len(tokens) = }")
-            temp_counts = tokeniser.Tokeniser.tokenise(tokens)
-            # print(f"{len(temp_counts) = }")
+            if cfg.addr in labels:
+                cfg.load()
+                # count += 1
+                cfgs.append(cfg)
+                tokens = tokeniser.Tokeniser.preProcessing(cfg)
+                # print(f"{len(tokens) = }")
+                temp_counts = tokeniser.Tokeniser.tokenise(tokens)
+                # print(f"{len(temp_counts) = }")
 
-            _counts: Counter[tuple[int | tuple[int, int]]] = Counter(temp_counts)
-            counts.update(_counts)
+                _counts: Counter[tuple[int | tuple[int, int]]] = Counter(temp_counts)
+                counts.update(_counts)
 
-            cfg.gen_indexes(temp_counts, counts)
-
-            count += 1
-            if count == max_cfgs:
-                break
+                cfg.gen_indexes(temp_counts, counts)
+            # else:
+            #     if count == max_cfgs:
+            #         break
 
         except KeyboardInterrupt:
             break
@@ -64,25 +78,30 @@ def main(
     # LSTM autoencoder
     LSTMEncodings = None
     if lstm:
-        # Creating a single set of axes
-        _, ax = plt.subplots()  # Adjust figsize as needed
+        # # Creating a single set of axes
+        # _, ax = plt.subplots()  # Adjust figsize as needed
 
-        # Plotting all columns on the same plot
-        for i in [1, 2 ,4 , 8, 16, 32, 64, 128, 256, 512]:
-            trainer = LSTM_AutoEnc_Training(counts, i, count)
-            finalLosses = trainer.trainEnc(200, checkpoints=True, progress=False)
-            np.savetxt(f"./src/vectorEncoding/cache/checkpointsLSTM_Autoenc/width{i}/losses.txt", finalLosses, delimiter=" ")
-            ax.plot(range(len(finalLosses)), finalLosses, label=f'Hidden Dim width: {i}')
+        # # Plotting all columns on the same plot
+        # for i in [1, 2 ,4 , 8, 16, 32, 64, 128, 172, 256, 512]: # includes the width of the other vectors
+        #     trainer = LSTM_AutoEnc_Training(counts, i, count)
+        #     finalLosses = trainer.trainEnc(200, checkpoints=True, progress=False)
+        #     np.savetxt(f"./src/vectorEncoding/cache/checkpointsLSTM_Autoenc/width{i}/losses.txt", finalLosses, delimiter=" ")
+        #     ax.plot(range(len(finalLosses)), finalLosses, label=f'Hidden Dim width: {i}')
 
-        # Adding labels and legend
-        ax.set_title('Multiple Columns on the Same Plot')
-        ax.set_xlabel('Data Points')
-        ax.set_ylabel('Values')
-        ax.legend()
+        # # Adding labels and legend
+        # ax.set_title('Multiple Columns on the Same Plot')
+        # ax.set_xlabel('Data Points')
+        # ax.set_ylabel('Values')
+        # ax.legend()
 
-        # Display the plot
-        plt.show()
+        # # Display the plot
+        # plt.show()
 
+        # LSTMEncodings = trainer.getEncodings()
+        # print(f"{LSTMEncodings.shape = }")
+
+        trainer = LSTM_AutoEnc_Training(counts, 172, count)
+        trainer.trainEnc(3, checkpoints=True, progress=True)
         LSTMEncodings = trainer.getEncodings()
         print(f"{LSTMEncodings.shape = }")
 
@@ -106,7 +125,7 @@ def main(
     # plt.ylabel("Loss")
     # plt.title("Losses over Epochs for LSTM Autoencoder")
     # plt.show()
-    
+
     # graph labeling
     gc = graphClassification(
         CFGs=cfgs,
@@ -118,8 +137,6 @@ def main(
     )
 
     gc.getGraphLabels()
-
-    return tfIdfVectors, averageVectors, LSTMEncodings
 
 """
 Things to try:
@@ -134,5 +151,6 @@ if __name__ == "__main__":
     main(
         tf_idf = True,
         average = True,
-        max_cfgs=5
+        lstm=True,
+        max_cfgs = 50
     )
