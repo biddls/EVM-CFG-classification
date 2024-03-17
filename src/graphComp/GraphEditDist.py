@@ -48,13 +48,19 @@ class graphClassification:
         self.pathToLabels = pathToLabels
         if _tf_idf is not None:
             self.tf_idf = _tf_idf
-            self.tf_idfVectors = self.cosine_similarity_np(_tf_idf)
+            self.tf_idfVectors_cosine_similarity_np = self.cosine_similarity_np(_tf_idf)
+            self.tf_idfVectors_euclideanDistance = self.euclideanDistance(_tf_idf)
+            self.tf_idfVectors_dotProduct = self.dotProduct(_tf_idf)
         if _average is not None:
             self.average = _average
-            self.averageVectors = self.cosine_similarity_np(_average)
+            self.averageVectors_cosine_similarity_np = self.cosine_similarity_np(_average)
+            self.averageVectors_euclideanDistance = self.euclideanDistance(_average)
+            self.averageVectors_dotProduct = self.dotProduct(_average)
         if _lstm is not None:
             self.lstm = _lstm
-            self.lstmVectors = self.cosine_similarity_np(_lstm)
+            self.lstmVectors_cosine_similarity_np = self.cosine_similarity_np(_lstm)
+            self.lstmVectors_euclideanDistance = self.euclideanDistance(_lstm)
+            self.lstmVectors_dotProduct = self.dotProduct(_lstm)
 
         # load in classes and labels
         self.loadClasses()
@@ -157,29 +163,7 @@ class graphClassification:
             except KeyError:
                 CFG.label = "unknown"
 
-    # def nodeSimilarity(self, node1: CFG_Node, node2: CFG_Node) -> bool:
-    #     """
-    #     Get the similarity between two nodes
-    #     """
-
-    #     node1Index = node1["index"]
-    #     node2Index = node2["index"]
-    #     return self.getSimilarity(node1Index, node2Index)
-
-    # def getSimilarity(self, node1Index: int, node2Index: int) -> bool:
-    #     # looks up the vectors for each node
-    #     node1Vector = self.tf_idf[node1Index]
-    #     node2Vector = self.tf_idf[node2Index]
-
-    #     cos_sim = dot(node1Vector, node2Vector)/(norm(node1Vector)*norm(node2Vector))
-
-    #     # print(f"cosine similarity: {cos_sim}")
-    #     if cos_sim > 0.8:
-    #         return True
-    #     else:
-    #         return False
-
-    def getGraphSimilarity(self, CFG_1: CFG_Reader, CFG_2: CFG_Reader) -> float:
+    def getGraphSimilarity(self, CFG_1: CFG_Reader, CFG_2: CFG_Reader) -> list[float]:
         """
         Get the similarity between two graphs
         """
@@ -189,9 +173,38 @@ class graphClassification:
 
         # get the similarity between the nodes using tf-idf
         indexMatrix = np.ix_(nodes1, nodes2)
-        result_matrix: npt.NDArray[np.float_] = self.lstmVectors.T[indexMatrix]
 
-        return float(np.average(result_matrix))
+        result_matrix_tf_idfVectors_cosine_similarity_np = self.tf_idfVectors_cosine_similarity_np.T[indexMatrix]
+        result_matrix_tf_idfVectors_euclideanDistance = self.tf_idfVectors_euclideanDistance.T[indexMatrix]
+        result_matrix_tf_idfVectors_dotProduct = self.tf_idfVectors_dotProduct.T[indexMatrix]
+        result_matrix_averageVectors_cosine_similarity_np = self.averageVectors_cosine_similarity_np.T[indexMatrix]
+        result_matrix_averageVectors_euclideanDistance = self.averageVectors_euclideanDistance.T[indexMatrix]
+        result_matrix_averageVectors_dotProduct = self.averageVectors_dotProduct.T[indexMatrix]
+        result_matrix_lstmVectors_cosine_similarity_np = self.lstmVectors_cosine_similarity_np.T[indexMatrix]
+        result_matrix_lstmVectors_euclideanDistance = self.lstmVectors_euclideanDistance.T[indexMatrix]
+        result_matrix_lstmVectors_dotProduct = self.lstmVectors_dotProduct.T[indexMatrix]
+
+        result_tf_idfVectors_cosine_similarity_np = float(np.average(result_matrix_tf_idfVectors_cosine_similarity_np))
+        result_tf_idfVectors_euclideanDistance = float(np.average(result_matrix_tf_idfVectors_euclideanDistance))
+        result_tf_idfVectors_dotProduct = float(np.average(result_matrix_tf_idfVectors_dotProduct))
+        result_averageVectors_cosine_similarity_np = float(np.average(result_matrix_averageVectors_cosine_similarity_np))
+        result_averageVectors_euclideanDistance = float(np.average(result_matrix_averageVectors_euclideanDistance))
+        result_averageVectors_dotProduct = float(np.average(result_matrix_averageVectors_dotProduct))
+        result_lstmVectors_cosine_similarity_np = float(np.average(result_matrix_lstmVectors_cosine_similarity_np))
+        result_lstmVectors_euclideanDistance = float(np.average(result_matrix_lstmVectors_euclideanDistance))
+        result_lstmVectors_dotProduct = float(np.average(result_matrix_lstmVectors_dotProduct))
+
+        return [
+            result_tf_idfVectors_cosine_similarity_np,
+            result_tf_idfVectors_euclideanDistance,
+            result_tf_idfVectors_dotProduct,
+            result_averageVectors_cosine_similarity_np,
+            result_averageVectors_euclideanDistance,
+            result_averageVectors_dotProduct,
+            result_lstmVectors_cosine_similarity_np,
+            result_lstmVectors_euclideanDistance,
+            result_lstmVectors_dotProduct
+        ]
 
     def getGraphLabels(self):
         """
@@ -199,33 +212,26 @@ class graphClassification:
         """
         pairs = permutations(range(len(self.CFGs)), 2)
         lenPairs = int(factorial(len(self.CFGs))/factorial(len(self.CFGs)-2))
-        pairs = tqdm(pairs, total=lenPairs, smoothing=0)
+        pairs = tqdm(pairs, desc="Generating the similiarity matrix", total=lenPairs, smoothing=0)
 
         similarityMatrix = np.identity(len(self.CFGs))
+        similarityMatrix = np.tile(similarityMatrix[:, :, np.newaxis], (1, 1, 9))
 
         # todo: table is mirrored so we only need to calculate half of it
         for pair1, pair2 in pairs:
             graph1 = self.CFGs[pair1]
             graph2 = self.CFGs[pair2]
-            similarity = self.getGraphSimilarity(graph1, graph2)
-            similarityMatrix[pair1, pair2] = similarity
+            simliaties = self.getGraphSimilarity(graph1, graph2)
+            similarityMatrix[pair1, pair2] = simliaties
 
         from matplotlib import pyplot as plt
-
-        plt.imshow(similarityMatrix)
-        plt.colorbar
-        plt.savefig("temp.png")
-
-        # get labels for the graphs and their corresponding addresses
-        # for cfg in self.CFGs:
-        #     print(f"address: {cfg.addr}, label: {cfg.label}")
 
         labels = [cfg.label for cfg in self.CFGs]
 
         defiIndces = [i for i, x in enumerate(labels) if x == "defi"]
         nftIndces = [i for i, x in enumerate(labels) if x == "nft"]
         erc20Indces = [i for i, x in enumerate(labels) if x == "erc20"]
-        print(f"defi: {len(defiIndces)}, nft: {len(nftIndces)}, erc20: {len(erc20Indces)}")
+        # print(f"defi: {len(defiIndces)}, nft: {len(nftIndces)}, erc20: {len(erc20Indces)}")
 
         defiTestIndces = defiIndces[:int(len(defiIndces)/5)]
         defiTrainIndces = defiIndces[int(len(defiIndces)/5):]
@@ -238,57 +244,70 @@ class graphClassification:
 
         testIndces = defiTestIndces + nftTestIndces + erc20TestIndces
         trueLabels = [self.CFGs[i].label for i in testIndces]
-        predLabels = list()
 
+        labels = [
+            "tf_idfVectors_cosine_similarity_np",
+            "tf_idfVectors_euclideanDistance",
+            "tf_idfVectors_dotProduct",
+            "averageVectors_cosine_similarity_np",
+            "averageVectors_euclideanDistance",
+            "averageVectors_dotProduct",
+            "lstmVectors_cosine_similarity_np",
+            "lstmVectors_euclideanDistance",
+            "lstmVectors_dotProduct"
+        ]
+
+        for d, label in enumerate(labels):
+            print(f"Calculating {label}")
+            predLabels = list()
+            for i in testIndces:
+                defiSim  = np.average(similarityMatrix[i, defiTrainIndces, d])
+                nftSim  = np.average(similarityMatrix[i, nftTrainIndces, d])
+                erc20Sim  = np.average(similarityMatrix[i, erc20TrainIndces, d])
+
+                # write the maximum to the cfg
+                if defiSim > nftSim and defiSim > erc20Sim:
+                    predLabels.append("defi")
+                    # print(f"defi: {defiSim}")
+                elif nftSim > defiSim and nftSim > erc20Sim:
+                    predLabels.append("nft")
+                    # print(f"nft: {nftSim}")
+                elif erc20Sim > defiSim and erc20Sim > nftSim:
+                    predLabels.append("erc20")
+                    # print(f"erc20: {erc20Sim}")
+
+            confMatrix = confusion_matrix(trueLabels, predLabels, labels=["defi", "nft", "erc20"])
+            print(confMatrix)
+
+            disp = ConfusionMatrixDisplay(confMatrix, display_labels=["defi", "nft", "erc20"])
+
+            disp.plot()
+            plt.savefig(f'{label}_confusion_matrix.png')
+
+        predLabels = list()
         for i in testIndces:
-            # if cfg.label != "unknown":
-            #     continue
-            # print(similarityMatrix[i, defiTrainIndces].shape)
-            # print(similarityMatrix[i, nftTrainIndces].shape)
-            # print(similarityMatrix[i, erc20TrainIndces].shape)
-            # print(np.max(similarityMatrix[i, defiTrainIndces]))
-            # print(np.max(similarityMatrix[i, nftTrainIndces]))
-            # print(np.max(similarityMatrix[i, erc20TrainIndces]))
-            # exit(0)
             defiSim  = np.average(similarityMatrix[i, defiTrainIndces])
             nftSim  = np.average(similarityMatrix[i, nftTrainIndces])
             erc20Sim  = np.average(similarityMatrix[i, erc20TrainIndces])
 
-
-            # cfg = self.CFGs[i]
-
             # write the maximum to the cfg
             if defiSim > nftSim and defiSim > erc20Sim:
                 predLabels.append("defi")
-                print(f"defi: {defiSim}")
+                # print(f"defi: {defiSim}")
             elif nftSim > defiSim and nftSim > erc20Sim:
                 predLabels.append("nft")
-                print(f"nft: {nftSim}")
+                # print(f"nft: {nftSim}")
             elif erc20Sim > defiSim and erc20Sim > nftSim:
                 predLabels.append("erc20")
-                print(f"erc20: {erc20Sim}")
+                # print(f"erc20: {erc20Sim}")
 
         confMatrix = confusion_matrix(trueLabels, predLabels, labels=["defi", "nft", "erc20"])
         print(confMatrix)
 
-        # plot the confusion matrix
-        # fig, ax = plt.subplots()
-        # cax = ax.matshow(confMatrix, cmap=plt.cm.Blues) # type: ignore
-
-        # # Add labels
-        # # ax.set_xlabel(["defi", "nft", "erc20"])
-        # # ax.set_ylabel(["defi", "nft", "erc20"])
-
-        # # Add color bar
-        # fig.colorbar(cax)
-
-        # # Save the plot
-        # plt.savefig('confusion_matrix.png')
-        
-        disp = ConfusionMatrixDisplay(confMatrix , display_labels=["defi", "nft", "erc20"])
+        disp = ConfusionMatrixDisplay(confMatrix, display_labels=["defi", "nft", "erc20"])
 
         disp.plot()
-        plt.savefig('confusion_matrix.png')
+        plt.savefig(f'confusion_matrix.png')
 
     def cosine_similarity_np(self, matrix: npt.NDArray[np.float_]) -> npt.NDArray[np.float_]:
         dot_product = np.dot(matrix, matrix.T)
@@ -311,6 +330,8 @@ class graphClassification:
         # Calculate squared distances
         # print(matrix)
         dist = euclidean_distances(matrix, squared=True) / matrix.shape[1]
+        # print(matrix.shape)
+        # exit(0)
         return dist
     
     def dotProduct(self, matrix: np.ndarray) -> np.ndarray:
@@ -325,6 +346,6 @@ class graphClassification:
         """
         # Calculate squared distances
         dist = np.dot(matrix, matrix.T)
-        print(matrix.shape)
-        exit(0)
+        # print(matrix.shape)
+        # exit(0)
         return dist / matrix.shape[1]
