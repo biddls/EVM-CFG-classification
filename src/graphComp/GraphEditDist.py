@@ -1,19 +1,15 @@
-# import networkx as nx
 import numpy as np
 from numpy import typing as npt
 from CFG_reader import CFG_Reader
 import pandas as pd
 import json
 from tqdm import tqdm
-# from graphComp.nodeDict import CFG_Node
-# from difflib import SequenceMatcher
-# from collections import Counter
 from itertools import permutations
-# from numpy import dot
-# from numpy.linalg import norm
 from math import factorial
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.metrics.pairwise import euclidean_distances
+from matplotlib import pyplot as plt
+
 
 
 class graphClassification:
@@ -163,7 +159,7 @@ class graphClassification:
             except KeyError:
                 CFG.label = "unknown"
 
-    def getGraphSimilarity(self, CFG_1: CFG_Reader, CFG_2: CFG_Reader) -> list[float]:
+    def getGraphSimilarity(self, CFG_1: CFG_Reader, CFG_2: CFG_Reader) -> npt.NDArray[np.float_]:
         """
         Get the similarity between two graphs
         """
@@ -194,7 +190,28 @@ class graphClassification:
         result_lstmVectors_euclideanDistance = float(np.average(result_matrix_lstmVectors_euclideanDistance))
         result_lstmVectors_dotProduct = float(np.average(result_matrix_lstmVectors_dotProduct))
 
-        return [
+        # labels = [
+        #     "result_matrix_tf_idfVectors_cosine_similarity_np",
+        #     "result_matrix_tf_idfVectors_euclideanDistance",
+        #     "result_matrix_tf_idfVectors_dotProduct",
+        #     "result_matrix_averageVectors_cosine_similarity_np",
+        #     "result_matrix_averageVectors_euclideanDistance",
+        #     "result_matrix_averageVectors_dotProduct",
+        #     "result_matrix_lstmVectors_cosine_similarity_np",
+        #     "result_matrix_lstmVectors_euclideanDistance",
+        #     "result_matrix_lstmVectors_dotProduct"
+        # ]
+        # if len(CFG_1.graph.nodes) > 500 and len(CFG_2.graph.nodes) > 500:
+        #     for label in labels:
+        #         print(f"Calculating {label}")
+        #         plt.imshow(eval(label))
+        #         # print(f"{similarityMatrix[:, :, d].shape = }")
+        #         plt.colorbar()
+        #         plt.savefig(f'./similarity_matrix/{CFG_1.addr}-{CFG_2.addr}-{label}_similarity_matrix.png')
+        #         plt.close()
+        #     exit(0)
+
+        return np.array([
             result_tf_idfVectors_cosine_similarity_np,
             result_tf_idfVectors_euclideanDistance,
             result_tf_idfVectors_dotProduct,
@@ -204,7 +221,7 @@ class graphClassification:
             result_lstmVectors_cosine_similarity_np,
             result_lstmVectors_euclideanDistance,
             result_lstmVectors_dotProduct
-        ]
+        ])
 
     def getGraphLabels(self):
         """
@@ -223,8 +240,6 @@ class graphClassification:
             graph2 = self.CFGs[pair2]
             simliaties = self.getGraphSimilarity(graph1, graph2)
             similarityMatrix[pair1, pair2] = simliaties
-
-        from matplotlib import pyplot as plt
 
         labels = [cfg.label for cfg in self.CFGs]
 
@@ -259,6 +274,13 @@ class graphClassification:
 
         for d, label in enumerate(labels):
             print(f"Calculating {label}")
+
+            plt.imshow(similarityMatrix[:, :, d])
+            # print(f"{similarityMatrix[:, :, d].shape = }")
+            plt.colorbar()
+            plt.savefig(f'./similarity_matrix/{label}_similarity_matrix.png')
+            plt.close()
+
             predLabels = list()
             for i in testIndces:
                 defiSim  = np.average(similarityMatrix[i, defiTrainIndces, d])
@@ -282,8 +304,10 @@ class graphClassification:
             disp = ConfusionMatrixDisplay(confMatrix, display_labels=["defi", "nft", "erc20"])
 
             disp.plot()
-            plt.savefig(f'{label}_confusion_matrix.png')
+            plt.savefig(f'./confusion_matrix/{label}_confusion_matrix.png')
+            plt.close()
 
+        # make global prediction
         predLabels = list()
         for i in testIndces:
             defiSim  = np.average(similarityMatrix[i, defiTrainIndces])
@@ -302,6 +326,7 @@ class graphClassification:
                 # print(f"erc20: {erc20Sim}")
 
         confMatrix = confusion_matrix(trueLabels, predLabels, labels=["defi", "nft", "erc20"])
+        print("total confusion matrix:")
         print(confMatrix)
 
         disp = ConfusionMatrixDisplay(confMatrix, display_labels=["defi", "nft", "erc20"])
