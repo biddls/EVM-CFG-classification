@@ -40,19 +40,20 @@ def main(
     for cfg in loader:
         # print(cfg)
         try:
-            if cfg.addr in labels:
-                cfg.load()
-                # count += 1
-                cfgs.append(cfg)
-                tokens = tokeniser.Tokeniser.preProcessing(cfg)
-                # print(f"{len(tokens) = }")
-                temp_counts = tokeniser.Tokeniser.tokenise(tokens)
-                # print(f"{len(temp_counts) = }")
+            if cfg.addr not in labels:
+                continue
+            cfg.load()
+            # count += 1
+            cfgs.append(cfg)
+            tokens = tokeniser.Tokeniser.preProcessing(cfg)
+            # print(f"{len(tokens) = }")
+            temp_counts = tokeniser.Tokeniser.tokenise(tokens)
+            # print(f"{len(temp_counts) = }")
 
-                _counts: Counter[tuple[int | tuple[int, int]]] = Counter(temp_counts)
-                counts.update(_counts)
+            _counts: Counter[tuple[int | tuple[int, int]]] = Counter(temp_counts)
+            counts.update(_counts)
 
-                cfg.gen_indexes(temp_counts, counts)
+            cfg.gen_indexes(temp_counts, counts)
             # else:
             #     if count == max_cfgs:
             #         break
@@ -61,6 +62,72 @@ def main(
             break
 
     print(f"Compression ratio of: {100 * (1 - (len(counts) / sum(list(counts.values())))):.2f}%")
+
+    # # plots a histogram of the lengths of the CFGs
+    # lenghts = [len(cfg) for cfg in cfgs]
+    # # plot as histogram
+    # plt.hist(lenghts, bins=50)
+    # plt.xlabel("Length of CFG")
+    # plt.ylabel("Frequency")
+    # plt.title("Histogram of CFG Lengths")
+    # plt.axvline(x=float(np.mean(lenghts)), color="orange", label=f"Mean: {np.mean(lenghts):.2f}")
+    # plt.legend(loc='upper right')
+    # plt.savefig("histogram.png")
+    # plt.close()
+
+    # # plots the frequency distribution of the tokens
+    # data = sorted(list(counts.values()), reverse=True)
+    # print(f"{len(data) = }")
+    # data = np.array(data)
+    # data = data[data > 10]
+    # cumulative = np.cumsum(data)
+    # _x = np.arange(len(data))
+    # fig = plt.figure()
+    # ax = fig.add_subplot(1, 1, 1)
+
+    # # plot frequency
+    # ax.set_yscale('log')
+    # lns1 = ax.plot(_x, data, color='blue', label='Frequency')
+
+    # # plot cumulative frequency
+    # ax_bis = ax.twinx()
+    # lns2 = ax_bis.plot(_x, cumulative/cumulative[-1], color='red', label='Cumulative Frequency')
+
+    # # plt.xlabel("Token")
+    # plt.ylabel("Frequency")
+    # plt.title("Frequency Distribution of Tokens")
+    # lns = lns1 + lns2
+    # labs = [l.get_label() for l in lns]
+    # ax.legend(lns, labs, loc='center right')
+    # plt.savefig("FrequencyDistributionMoreThan10.png")
+    # plt.close()
+
+    # # plots the frequency distribution of the tokens
+    # data = sorted(list(counts.values()), reverse=True)
+    # data = np.array(data)
+    # cumulative = np.cumsum(data)
+    # _x = np.arange(len(data))
+    # fig = plt.figure()
+    # ax = fig.add_subplot(1, 1, 1)
+
+    # # plot frequency
+    # ax.set_yscale('log')
+    # lns1 = ax.plot(_x, data, color='blue', label='Frequency')
+
+    # # plot cumulative frequency
+    # ax_bis = ax.twinx()
+    # lns2 = ax_bis.plot(_x, cumulative/cumulative[-1], color='red', label='Cumulative Frequency')
+
+    # # plt.xlabel("Token")
+    # plt.ylabel("Frequency")
+    # plt.title("Frequency Distribution of Tokens")
+    # lns = lns1 + lns2
+    # labs = [l.get_label() for l in lns]
+    # ax.legend(lns, labs, loc='center right')
+    # plt.savefig("FrequencyDistribution.png")
+    # plt.close()
+
+    # exit(0)
 
     # Getting vectors
     # TF-IDF
