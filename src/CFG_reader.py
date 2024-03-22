@@ -1,7 +1,9 @@
+from collections import Counter
 import json
 import networkx as nx
 import matplotlib.pyplot as plt
 from glob import glob
+from typing import Self
 
 
 class CFG_Reader:
@@ -13,12 +15,17 @@ class CFG_Reader:
     addr: str
     parsedOpcodes: list[list[str]]
     tokens: list[list[str | tuple[str, str]]]
+    label: str
 
     def __init__(self, path: str) -> None:
         self.path = path
         self.addr = path.split("\\")[-1].split(".")[0]
-        # Load JSON data from file
-        with open(path, "r") as json_file:
+
+    def load(self) -> None:
+        """
+        Load JSON data from file
+        """
+        with open(self.path, "r") as json_file:
             self.data: dict = json.load(json_file)
 
         # Get the opcodes from the JSON file
@@ -34,25 +41,52 @@ class CFG_Reader:
                 opcode.split(" ", maxsplit=1)[1] for opcode in parsedOpcodes[i]
             ]
             self.parsedOpcodes.append(temp)
+        
+        # if self.addr == "0x0000000000007f150bd6f54c40a34d7c3d5e9f56":
+        #     print(self.parsedOpcodes[-13:])
+
+    def hasInvalidOpcodes(self) -> bool:
+        """
+        Checks if the CFG has invalid opcodes
+        """
+        for node in self.parsedOpcodes:
+            for opcode in node:
+                if opcode == "INVALID":
+                    return True
+        return False
 
     def generateGraph(self) -> None:
         # Create a directed graph
         self.graph = nx.DiGraph()
 
+        if len(self.parsedOpcodes) != len(self.data["runtimeCfg"]["nodes"]):
+            raise ValueError("The number of parsed opcodes does not match the number of nodes in the CFG")
+
         # Add nodes
-        for node, parsedOpcode in zip(self.data["runtimeCfg"]["nodes"], self.parsedOpcodes):
+        for index, node in enumerate(self.data["runtimeCfg"]["nodes"]):
             self.graph.add_node(
                 node["offset"],
                 # type=node["type"],
-                parsedOpcode=parsedOpcode,
+                parsedOpcode=self.parsedOpcodes[index],
+                # internal_index=index
             )
 
         # Add edges
         for successor in self.data["runtimeCfg"]["successors"]:
             from_node = successor["from"]
             to_nodes = successor["to"]
+            if from_node not in self.graph.nodes:
+                continue
             for to_node in to_nodes:
+                if to_node not in self.graph.nodes:
+                    continue
                 self.graph.add_edge(from_node, to_node)
+
+        self.graph = nx.freeze(self.graph)
+        self.indexToNode = {i: x for i, x in enumerate(self.graph.nodes)}
+
+        # if self.addr == "0x0000000000007f150bd6f54c40a34d7c3d5e9f56":
+        #     print(list(self.graph.nodes.data())[-20:])
 
     def drawGraph(self) -> None:
         if self.graph is None:
@@ -67,12 +101,6 @@ class CFG_Reader:
             arrowsize=10)
         plt.show()
 
-    def applyVectorEncodings(self) -> None:
-        """
-        Applies vector encoding to the parsed opcodes
-        """
-        ...
-
     def __repr__(self) -> str:
         return self.path
 
@@ -81,24 +109,84 @@ class CFG_Reader:
             self.generateGraph()
         return len(self.graph.nodes)
 
+    def __len__(self) -> int:
+        return self.nodeCount()
+
     def edgeCount(self) -> int:
         if self.graph is None:
             self.generateGraph()
         return len(self.graph.edges)
 
-    def getParsedOpcodes(self): # -> list[list[str]]:
+    def getParsedOpcodes(self):
         if self.graph is None:
             self.generateGraph()
         return self.graph.nodes.data()
-    
-    def addTokens(self, tokens: list[list[str | tuple[str, str]]]) -> None:
-        self.tokens = tokens
 
+    def addIndex(self, nodeIndex: int, index: int) -> None:
+        """
+        Links the index of the node with the external index of the compressed link
+        Parameters:
+        node: int
+            The node to add the index to
+        index: int
+            The external index to add to the node
+        """
+        if not hasattr(self, 'graph'):
+            self.generateGraph()
+
+        node = self.indexToNode[nodeIndex]
+        self.graph.nodes[node]["extIndex"] = index
+
+    def gen_indexes(
+        self,
+        tokens: list[tuple[int | tuple[int, int]]],
+        counts: Counter[tuple[int | tuple[int, int]]]):
+        """
+        Given the tokens and the counts, generate the indexes for the graph
+        To allow referencing of the index of the nodes to the main list of tokens
+        Parameters:
+        tokens: list[tuple[int | tuple[int, int]]]
+            The tokens to be indexed
+        counts: Counter[tuple[int | tuple[int, int]]]
+            The current collection of tokens that have been processed (inc)
+        """
+
+        # check if the number of tokens equals the number of nodes
+        if len(tokens) != len(self.parsedOpcodes):
+            print(len(tokens), len(self.parsedOpcodes))
+            print(self.hasInvalidOpcodes())
+            raise ValueError("The number of tokens does not match the number of nodes in the CFG")
+
+        # for each node in the CFG
+        temp = {x: i for i, x in enumerate(counts.keys())}
+        """
+        Given the list of tokens:
+            get the index of the decompressed index of the token
+            and write that to the graph for future referencing
+        ! Note checks have been made to ensure that:
+        !   "tokens" lines up with "self.parsedOpcodes"
+        """
+        globalIndes = list(map(lambda x: temp[x], tokens))
+        # apply indexes
+        for i, index in enumerate(globalIndes):
+            self.addIndex(i, index)
+
+    def __eq__(self, __value: Self) -> bool:
+        if not isinstance(__value, CFG_Reader):
+            return False
+        return self.addr == __value.addr
+
+    def setLabel(self, label: str) -> None:
+        """
+        Set the label of the CFG
+        """
+        self.label = label
 
 if __name__ == "__main__":
+    from tqdm import tqdm
     # Get all the JSON files in the directory
     files = glob("./src/ControlFlowGraphs/evmOut/*.json")
-    for file in files:
+    for file in tqdm(files):
         cfg = CFG_Reader(file)
         total = 0
         for opCode in cfg.parsedOpcodes:

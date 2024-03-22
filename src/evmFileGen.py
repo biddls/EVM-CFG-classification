@@ -1,3 +1,7 @@
+"""
+Run this to generate the evm files from the database
+"""
+
 import sqlite3
 from typing import Any
 from tqdm import tqdm

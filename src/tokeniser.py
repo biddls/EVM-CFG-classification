@@ -10,6 +10,7 @@ from tqdm import tqdm
 from collections import Counter
 import os
 
+
 @dataclass
 class CFG_Loader:
     """
@@ -64,11 +65,13 @@ class Tokeniser:
     @staticmethod
     def preProcessing(cfg: CFG_Reader) -> list[list[str | tuple[str, str]]]:
         """
-        Tokenises the opcodes in the CFG
+        Tokenises the opcodes in the CFG. Gives me something that looks like this for each node:
+        `['ADD', 'MSTORE', 'ADD', ['PUSH2', '0x5ef0'], 'JUMP', 'EXIT BLOCK']`
         """
         tokens: list[list[str | tuple[str, str]]] = list()
         # splits the opcodes into tokens
         # print(f"len of opCodes: {len(cfg.parsedOpcodes)}")
+        startLen = len(cfg.parsedOpcodes)
         for node in cfg.parsedOpcodes[:-1]:
             nodeTokens = list()
             for opcode in node:
@@ -80,31 +83,20 @@ class Tokeniser:
                     if len(opcode) == 2:
                         nodeTokens.append(opcode)
                 else:
-                    if opcode == "INVALID":
-                        continue
+                    # if opcode == "INVALID":
+                    #     continue
                     nodeTokens.append(opcode)
             tokens.append(nodeTokens)
         tokens.append(["EXIT BLOCK"])
-        # Gives me something that looks like this for each node:
-        # ['ADD', 'MSTORE', 'ADD', ['PUSH2', '0x5ef0'], 'JUMP', 'EXIT BLOCK']
-        # print("###")
-        # print(tokens[-2:])
-        # print("###")
-        # print(f"len in preprocessing: {len(tokens)}")
+        
+        if len(tokens) != startLen:
+            raise ValueError("The number of parsed opcodes does not match the number of nodes in the CFG")
         return tokens
 
     @staticmethod
     def tokenise(
-        tokens: list[list[str | tuple[str, str]]],
-        counting: bool = False
-        ) -> Counter[
-            tuple[
-                int | tuple[int, int]
-                ]
-            ] | list[
-            tuple[
-                int | tuple[int, int]
-                ]]:
+        tokens: list[list[str | tuple[str, str]]]
+    ) -> list[tuple[int | tuple[int, int]]]:
 
         """
         performs the tokeniseation for each node in the CFG
@@ -118,11 +110,7 @@ class Tokeniser:
             temp = tuple(temp)
             vectors.append(temp) # type: ignore
 
-        if counting is True:
-            return Counter(vectors)
-        else:
-            # print(f"len in tokeniseation: {len(vectors)}")
-            return vectors
+        return vectors
 
     @staticmethod
     def tokeniseNode(byteCodes: list[str | tuple[str, str]]) -> list[str | tuple[str, str]]:
