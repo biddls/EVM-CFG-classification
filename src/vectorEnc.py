@@ -151,8 +151,8 @@ def main(
         # # Plotting all columns on the same plot
         # for i in [1, 2 ,4 , 8, 16, 32, 64, 128, 172, 256, 512]: # includes the width of the other vectors
         #     trainer = LSTM_AutoEnc_Training(counts, i, count)
-        #     finalLosses = trainer.trainEnc(200, checkpoints=True, progress=False)
-        #     np.savetxt(f"./src/vectorEncoding/cache/checkpointsLSTM_Autoenc/width{i}/losses.txt", finalLosses, delimiter=" ")
+        #     finalLosses = trainer.trainEnc(3, checkpoints=True, progress=False)
+        #     # np.savetxt(f"./src/vectorEncoding/cache/checkpointsLSTM_Autoenc/width{i}/losses.txt", finalLosses, delimiter=" ")
         #     ax.plot(range(len(finalLosses)), finalLosses, label=f'Hidden Dim width: {i}')
 
         # # Adding labels and legend
@@ -164,13 +164,16 @@ def main(
         # # Display the plot
         # plt.show()
 
-        # LSTMEncodings = trainer.getEncodings()
-        # print(f"{LSTMEncodings.shape = }")
-
-        trainer = LSTM_AutoEnc_Training(counts, 172, count)
-        trainer.trainEnc(3, checkpoints=True, progress=True)
+        trainer = LSTM_AutoEnc_Training(counts, 512, count)
         LSTMEncodings = trainer.getEncodings()
         print(f"{LSTMEncodings.shape = }")
+
+    # exit(0)
+
+        # trainer = LSTM_AutoEnc_Training(counts, 172, count)
+        # trainer.trainEnc(3, checkpoints=True, progress=True)
+        # LSTMEncodings = trainer.getEncodings()
+        # print(f"{LSTMEncodings.shape = }")
 
     shapes = [
         tfIdfVectors.shape if tfIdfVectors is not None else None,
