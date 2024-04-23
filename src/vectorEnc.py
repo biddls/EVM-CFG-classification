@@ -7,7 +7,9 @@ from collections import Counter
 import matplotlib.pyplot as plt
 import numpy as np
 from CFG_reader import CFG_Reader
-from graphComp.GraphEditDist import graphClassification
+from graphComp.graphLoading import graphLoader
+from graphComp.graphClassification import graphLabelingSecondTry
+from graphComp.graphLabeling import graphLabelingFirstTry
 
 
 def main(
@@ -22,7 +24,7 @@ def main(
     counts: Counter[tuple[int | tuple[int, int]]] = Counter()
 
     # get the list of the CFG addrs which have labels
-    gc = graphClassification(
+    gc = graphLoader(
         CFGs=cfgs,
         pathToTags="./addressTags.csv",
         pathToLabels="./labels.json",
@@ -164,7 +166,7 @@ def main(
         # # Display the plot
         # plt.show()
 
-        trainer = LSTM_AutoEnc_Training(counts, 512, count)
+        trainer = LSTM_AutoEnc_Training(counts, 172, count)
         LSTMEncodings = trainer.getEncodings()
         print(f"{LSTMEncodings.shape = }")
 
@@ -197,7 +199,7 @@ def main(
     # plt.show()
 
     # graph labeling
-    gc = graphClassification(
+    gc = graphLabelingFirstTry(
         CFGs=cfgs,
         pathToTags="./addressTags.csv",
         pathToLabels="./labels.json",
