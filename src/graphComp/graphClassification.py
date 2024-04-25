@@ -20,8 +20,9 @@ class graphLabelingSecondTry(graphLoader):
 
         # for every term search every CFG
         for cfg in self.CFGs:
-            indexes = cfg.graph.nodes.data('extIndex') # type: ignore
-            indexes = [index[0] for index in indexes]
+            indexes: list[int] = [x[1] for x in cfg.graph.nodes(data='extIndex')] # type: ignore
+            # indexes = cfg.graph.nodes.data('extIndex') # type: ignore
+            # indexes = [index[0] for index in indexes]
             indexes = list(set(indexes))
             if cfg.label == "defi":
                 index = 0
@@ -39,6 +40,7 @@ class graphLabelingSecondTry(graphLoader):
         # calculate the IDF
         importance = importance / np.array([[counts["defi"], counts["nft"], counts["erc20"]]]).T
         print(len(self.CFGs))
+        print(importance.shape)
         print(np.max(importance))
         print(np.min(importance))
         print(np.mean(importance))

@@ -240,7 +240,7 @@ class LSTM_AutoEnc_Training:
         """
         self.model.eval()
         encodings = list()
-        for sample in tqdm(self.data, desc="generating encodings"):
+        for sample in tqdm(self.data, desc="generating encodings", ncols=0):
             # print(sample)
             # print(np.average(sample.cpu().detach().numpy()))
             # print(sample.shape)

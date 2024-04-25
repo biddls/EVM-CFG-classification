@@ -12,12 +12,9 @@ class graphLabelingFirstTry(graphLoader):
         """
         Get the similarity between two graphs
         """
-        # get the similarity between the nodes using tf-idf
+        # get the similarity between the nodes
         indexMatrix = np.ix_(nodes1, nodes2)
-        print(f"{self.tf_idfVectors_cosine_similarity_np.T.shape = }")
-        print(f"{indexMatrix[0].shape = }, {indexMatrix[1].shape = }")
-        print(f"{np.max(indexMatrix[0]) = }, {np.max(indexMatrix[1]) = }")
-        # exit(0)
+
         result_matrix_tf_idfVectors_cosine_similarity_np = self.tf_idfVectors_cosine_similarity_np.T[indexMatrix]
         result_matrix_tf_idfVectors_euclideanDistance = self.tf_idfVectors_euclideanDistance.T[indexMatrix]
         result_matrix_tf_idfVectors_dotProduct = self.tf_idfVectors_dotProduct.T[indexMatrix]
@@ -38,27 +35,6 @@ class graphLabelingFirstTry(graphLoader):
         result_lstmVectors_euclideanDistance = float(np.average(result_matrix_lstmVectors_euclideanDistance))
         result_lstmVectors_dotProduct = float(np.average(result_matrix_lstmVectors_dotProduct))
 
-        # labels = [
-        #     "result_matrix_tf_idfVectors_cosine_similarity_np",
-        #     "result_matrix_tf_idfVectors_euclideanDistance",
-        #     "result_matrix_tf_idfVectors_dotProduct",
-        #     "result_matrix_averageVectors_cosine_similarity_np",
-        #     "result_matrix_averageVectors_euclideanDistance",
-        #     "result_matrix_averageVectors_dotProduct",
-        #     "result_matrix_lstmVectors_cosine_similarity_np",
-        #     "result_matrix_lstmVectors_euclideanDistance",
-        #     "result_matrix_lstmVectors_dotProduct"
-        # ]
-        # if len(CFG_1.graph.nodes) > 500 and len(CFG_2.graph.nodes) > 500:
-        #     for label in labels:
-        #         print(f"Calculating {label}")
-        #         plt.imshow(eval(label))
-        #         # print(f"{similarityMatrix[:, :, d].shape = }")
-        #         plt.colorbar()
-        #         plt.savefig(f'./similarity_matrix/{CFG_1.addr}-{CFG_2.addr}-{label}_similarity_matrix.png')
-        #         plt.close()
-        #     exit(0)
-
         return np.array([
             result_tf_idfVectors_cosine_similarity_np,
             result_tf_idfVectors_euclideanDistance,
@@ -77,7 +53,7 @@ class graphLabelingFirstTry(graphLoader):
         """
         pairs = permutations(range(len(self.CFGs)), 2)
         lenPairs = int(factorial(len(self.CFGs))/factorial(len(self.CFGs)-2))
-        pairs = tqdm(pairs, desc="Generating the similiarity matrix", total=lenPairs, smoothing=0)
+        pairs = tqdm(pairs, desc="Generating the similiarity matrix", total=lenPairs, smoothing=0, ncols=0)
 
         similarityMatrix = np.identity(len(self.CFGs))
         similarityMatrix = np.tile(similarityMatrix[:, :, np.newaxis], (1, 1, 9))
@@ -88,8 +64,6 @@ class graphLabelingFirstTry(graphLoader):
             graph2 = self.CFGs[pair2]
             nodes1: list[int] = [x[1] for x in graph1.graph.nodes(data='extIndex')] # type: ignore
             nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')] # type: ignore
-            print(f"\n{max(max(nodes1), max(nodes2)) = }")
-            print(f"{len(nodes1) = }, {len(nodes2) = }")
             simliaties = self.getGraphSimilarity(nodes1, nodes2)
             similarityMatrix[pair1, pair2] = simliaties
 
@@ -100,17 +74,17 @@ class graphLabelingFirstTry(graphLoader):
         erc20Indces = [i for i, x in enumerate(labels) if x == "erc20"]
         # print(f"defi: {len(defiIndces)}, nft: {len(nftIndces)}, erc20: {len(erc20Indces)}")
 
-        defiTestIndces = defiIndces[:int(len(defiIndces)/5)]
-        defiTrainIndces = defiIndces[int(len(defiIndces)/5):]
+        # defiTestIndces = defiIndces[:int(len(defiIndces)/5)]
+        # defiTrainIndces = defiIndces[int(len(defiIndces)/5):]
 
-        nftTestIndces = nftIndces[:int(len(nftIndces)/5)]
-        nftTrainIndces = nftIndces[int(len(nftIndces)/5):]
+        # nftTestIndces = nftIndces[:int(len(nftIndces)/5)]
+        # nftTrainIndces = nftIndces[int(len(nftIndces)/5):]
         
-        erc20TestIndces = erc20Indces[:int(len(erc20Indces)/5)]
-        erc20TrainIndces = erc20Indces[int(len(erc20Indces)/5):]
+        # erc20TestIndces = erc20Indces[:int(len(erc20Indces)/5)]
+        # erc20TrainIndces = erc20Indces[int(len(erc20Indces)/5):]
 
-        testIndces = defiTestIndces + nftTestIndces + erc20TestIndces
-        trueLabels = [self.CFGs[i].label for i in testIndces]
+        Indces = defiIndces + nftIndces + erc20Indces
+        trueLabels = [self.CFGs[i].label for i in Indces]
 
         labels = [
             "tf_idfVectors_cosine_similarity_np",
@@ -124,20 +98,20 @@ class graphLabelingFirstTry(graphLoader):
             "lstmVectors_dotProduct"
         ]
 
-        for d, label in enumerate(labels):
-            print(f"Calculating {label}")
+        # 3 X 3 plot
+        fig, axis = plt.subplots(3, 3, figsize=(15, 15))
+        axisIndex = list()
+        for x in range(3):
+            for y in range(3):
+                axisIndex.append([x, y])
 
-            plt.imshow(similarityMatrix[:, :, d])
-            # print(f"{similarityMatrix[:, :, d].shape = }")
-            plt.colorbar()
-            plt.savefig(f'./similarity_matrix/{label}_similarity_matrix.png')
-            plt.close()
+        for d, label in enumerate(labels):
 
             predLabels = list()
-            for i in testIndces:
-                defiSim  = np.average(similarityMatrix[i, defiTrainIndces, d])
-                nftSim  = np.average(similarityMatrix[i, nftTrainIndces, d])
-                erc20Sim  = np.average(similarityMatrix[i, erc20TrainIndces, d])
+            for i in Indces:
+                defiSim  = np.average(similarityMatrix[i, defiIndces, d])
+                nftSim  = np.average(similarityMatrix[i, nftIndces, d])
+                erc20Sim  = np.average(similarityMatrix[i, erc20Indces, d])
 
                 # write the maximum to the cfg
                 if defiSim > nftSim and defiSim > erc20Sim:
@@ -149,22 +123,25 @@ class graphLabelingFirstTry(graphLoader):
                 elif erc20Sim > defiSim and erc20Sim > nftSim:
                     predLabels.append("erc20")
                     # print(f"erc20: {erc20Sim}")
-
+            # print(f"{len(trueLabels) = }, {len(predLabels) = }")
             confMatrix = confusion_matrix(trueLabels, predLabels, labels=["defi", "nft", "erc20"])
-            print(confMatrix)
+            # print(confMatrix)
 
             disp = ConfusionMatrixDisplay(confMatrix, display_labels=["defi", "nft", "erc20"])
+            # if d == 8:
+            #     continue
+            x, y = axisIndex[d]
+            disp.plot(ax=axis[x, y], colorbar=False)
+            axis[x, y].set_title(label)
 
-            disp.plot()
-            plt.savefig(f'./confusion_matrix/{label}_confusion_matrix.png')
-            plt.close()
+        fig.savefig(f'./matrix_of_confusion_matrix.png')
 
         # make global prediction
         predLabels = list()
-        for i in testIndces:
-            defiSim  = np.average(similarityMatrix[i, defiTrainIndces])
-            nftSim  = np.average(similarityMatrix[i, nftTrainIndces])
-            erc20Sim  = np.average(similarityMatrix[i, erc20TrainIndces])
+        for i in Indces:
+            defiSim  = np.average(similarityMatrix[i, defiIndces])
+            nftSim  = np.average(similarityMatrix[i, nftIndces])
+            erc20Sim  = np.average(similarityMatrix[i, erc20Indces])
 
             # write the maximum to the cfg
             if defiSim > nftSim and defiSim > erc20Sim:
@@ -178,8 +155,6 @@ class graphLabelingFirstTry(graphLoader):
                 # print(f"erc20: {erc20Sim}")
 
         confMatrix = confusion_matrix(trueLabels, predLabels, labels=["defi", "nft", "erc20"])
-        print("total confusion matrix:")
-        print(confMatrix)
 
         disp = ConfusionMatrixDisplay(confMatrix, display_labels=["defi", "nft", "erc20"])
 

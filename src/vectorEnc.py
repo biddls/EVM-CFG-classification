@@ -199,7 +199,7 @@ def main(
     # plt.show()
 
     # graph labeling
-    gc = graphLabelingFirstTry(
+    gc = graphLabelingSecondTry(
         CFGs=cfgs,
         pathToTags="./addressTags.csv",
         pathToLabels="./labels.json",
@@ -221,8 +221,8 @@ Things to try:
 
 if __name__ == "__main__":
     main(
-        tf_idf = True,
+        # tf_idf = True,
         average = True,
-        lstm=True,
+        # lstm=True,
         max_cfgs = 50
     )
