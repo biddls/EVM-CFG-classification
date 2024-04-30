@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from CFG_reader import CFG_Reader
 from graphComp.graphLoading import graphLoader
-from graphComp.graphClassification import graphLabelingSecondTry
-from graphComp.graphLabeling import graphLabelingFirstTry
+from graphComp.graphClassification import graphCompression
+from graphComp.graphLabeling import graphLabeling
 
 
 def main(
@@ -36,7 +36,7 @@ def main(
     del gc
 
     loader = tokeniser.CFG_Loader(exclusionList="./src/vectorEncoding/cache/conts/*.txt")
-    loader = tqdm(loader, desc="Loading and encoding CFGs")
+    loader = tqdm(loader, desc="Loading and encoding CFGs", ncols=0)
 
     # loads in and pre processes the CFGs
     for cfg in loader:
@@ -64,72 +64,6 @@ def main(
             break
 
     print(f"Compression ratio of: {100 * (1 - (len(counts) / sum(list(counts.values())))):.2f}%")
-
-    # # plots a histogram of the lengths of the CFGs
-    # lenghts = [len(cfg) for cfg in cfgs]
-    # # plot as histogram
-    # plt.hist(lenghts, bins=50)
-    # plt.xlabel("Length of CFG")
-    # plt.ylabel("Frequency")
-    # plt.title("Histogram of CFG Lengths")
-    # plt.axvline(x=float(np.mean(lenghts)), color="orange", label=f"Mean: {np.mean(lenghts):.2f}")
-    # plt.legend(loc='upper right')
-    # plt.savefig("histogram.png")
-    # plt.close()
-
-    # # plots the frequency distribution of the tokens
-    # data = sorted(list(counts.values()), reverse=True)
-    # print(f"{len(data) = }")
-    # data = np.array(data)
-    # data = data[data > 10]
-    # cumulative = np.cumsum(data)
-    # _x = np.arange(len(data))
-    # fig = plt.figure()
-    # ax = fig.add_subplot(1, 1, 1)
-
-    # # plot frequency
-    # ax.set_yscale('log')
-    # lns1 = ax.plot(_x, data, color='blue', label='Frequency')
-
-    # # plot cumulative frequency
-    # ax_bis = ax.twinx()
-    # lns2 = ax_bis.plot(_x, cumulative/cumulative[-1], color='red', label='Cumulative Frequency')
-
-    # # plt.xlabel("Token")
-    # plt.ylabel("Frequency")
-    # plt.title("Frequency Distribution of Tokens")
-    # lns = lns1 + lns2
-    # labs = [l.get_label() for l in lns]
-    # ax.legend(lns, labs, loc='center right')
-    # plt.savefig("FrequencyDistributionMoreThan10.png")
-    # plt.close()
-
-    # # plots the frequency distribution of the tokens
-    # data = sorted(list(counts.values()), reverse=True)
-    # data = np.array(data)
-    # cumulative = np.cumsum(data)
-    # _x = np.arange(len(data))
-    # fig = plt.figure()
-    # ax = fig.add_subplot(1, 1, 1)
-
-    # # plot frequency
-    # ax.set_yscale('log')
-    # lns1 = ax.plot(_x, data, color='blue', label='Frequency')
-
-    # # plot cumulative frequency
-    # ax_bis = ax.twinx()
-    # lns2 = ax_bis.plot(_x, cumulative/cumulative[-1], color='red', label='Cumulative Frequency')
-
-    # # plt.xlabel("Token")
-    # plt.ylabel("Frequency")
-    # plt.title("Frequency Distribution of Tokens")
-    # lns = lns1 + lns2
-    # labs = [l.get_label() for l in lns]
-    # ax.legend(lns, labs, loc='center right')
-    # plt.savefig("FrequencyDistribution.png")
-    # plt.close()
-
-    # exit(0)
 
     # Getting vectors
     # TF-IDF
@@ -170,13 +104,6 @@ def main(
         LSTMEncodings = trainer.getEncodings()
         print(f"{LSTMEncodings.shape = }")
 
-    # exit(0)
-
-        # trainer = LSTM_AutoEnc_Training(counts, 172, count)
-        # trainer.trainEnc(3, checkpoints=True, progress=True)
-        # LSTMEncodings = trainer.getEncodings()
-        # print(f"{LSTMEncodings.shape = }")
-
     shapes = [
         tfIdfVectors.shape if tfIdfVectors is not None else None,
         averageVectors.shape if averageVectors is not None else None,
@@ -191,21 +118,25 @@ def main(
         else:
             raise ValueError(f"Shapes are not equal: {shapes}")
 
-    # chart the losses from finalLosses
-    # plt.plot(finalLosses)
-    # plt.xlabel("Epochs")
-    # plt.ylabel("Loss")
-    # plt.title("Losses over Epochs for LSTM Autoencoder")
-    # plt.show()
-
-    # graph labeling
-    gc = graphLabelingSecondTry(
+    cfgs = graphCompression(
         CFGs=cfgs,
         pathToTags="./addressTags.csv",
         pathToLabels="./labels.json",
         _tf_idf=tfIdfVectors,
+        _counts=counts,
+    ).compress()
+
+    exit(0)
+
+    # graph labeling
+    gc = graphLabeling(
+        CFGs=cfgs,
+        pathToTags="./addressTags.csv",
+        pathToLabels="./labels.json",
+        _tf_idf=tfIdfVectors,
+        _counts=counts,
         _average=averageVectors,
-        _lstm=LSTMEncodings
+        _lstm=LSTMEncodings,
     )
 
     gc.getGraphLabels()
@@ -221,8 +152,8 @@ Things to try:
 
 if __name__ == "__main__":
     main(
-        # tf_idf = True,
-        average = True,
+        tf_idf = True,
+        # average = True,
         # lstm=True,
-        max_cfgs = 50
+        # max_cfgs = 50
     )

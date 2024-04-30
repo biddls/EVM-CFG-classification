@@ -1,5 +1,5 @@
 from tqdm import tqdm
-from itertools import permutations
+from itertools import permutations, combinations
 from math import factorial
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from matplotlib import pyplot as plt
@@ -7,7 +7,7 @@ import numpy as np
 from numpy import typing as npt
 from graphComp.graphLoading import graphLoader
 
-class graphLabelingFirstTry(graphLoader):
+class graphLabeling(graphLoader):
     def getGraphSimilarity(self, nodes1: list[int], nodes2: list[int]) -> npt.NDArray[np.float_]:
         """
         Get the similarity between two graphs
@@ -51,14 +51,13 @@ class graphLabelingFirstTry(graphLoader):
         """
         generates the labels for the graphs
         """
-        pairs = permutations(range(len(self.CFGs)), 2)
+        pairs = combinations(range(len(self.CFGs)), 2)
         lenPairs = int(factorial(len(self.CFGs))/factorial(len(self.CFGs)-2))
         pairs = tqdm(pairs, desc="Generating the similiarity matrix", total=lenPairs, smoothing=0, ncols=0)
 
         similarityMatrix = np.identity(len(self.CFGs))
         similarityMatrix = np.tile(similarityMatrix[:, :, np.newaxis], (1, 1, 9))
 
-        # todo: table is mirrored so we only need to calculate half of it
         for pair1, pair2 in pairs:
             graph1 = self.CFGs[pair1]
             graph2 = self.CFGs[pair2]
@@ -67,35 +66,27 @@ class graphLabelingFirstTry(graphLoader):
             simliaties = self.getGraphSimilarity(nodes1, nodes2)
             similarityMatrix[pair1, pair2] = simliaties
 
+        similarityMatrix += np.rot90(np.fliplr(similarityMatrix))
+
         labels = [cfg.label for cfg in self.CFGs]
 
         defiIndces = [i for i, x in enumerate(labels) if x == "defi"]
         nftIndces = [i for i, x in enumerate(labels) if x == "nft"]
         erc20Indces = [i for i, x in enumerate(labels) if x == "erc20"]
-        # print(f"defi: {len(defiIndces)}, nft: {len(nftIndces)}, erc20: {len(erc20Indces)}")
-
-        # defiTestIndces = defiIndces[:int(len(defiIndces)/5)]
-        # defiTrainIndces = defiIndces[int(len(defiIndces)/5):]
-
-        # nftTestIndces = nftIndces[:int(len(nftIndces)/5)]
-        # nftTrainIndces = nftIndces[int(len(nftIndces)/5):]
-        
-        # erc20TestIndces = erc20Indces[:int(len(erc20Indces)/5)]
-        # erc20TrainIndces = erc20Indces[int(len(erc20Indces)/5):]
 
         Indces = defiIndces + nftIndces + erc20Indces
         trueLabels = [self.CFGs[i].label for i in Indces]
 
         labels = [
-            "tf_idfVectors_cosine_similarity_np",
-            "tf_idfVectors_euclideanDistance",
-            "tf_idfVectors_dotProduct",
-            "averageVectors_cosine_similarity_np",
-            "averageVectors_euclideanDistance",
-            "averageVectors_dotProduct",
-            "lstmVectors_cosine_similarity_np",
-            "lstmVectors_euclideanDistance",
-            "lstmVectors_dotProduct"
+            "tf-idf | cosine similarity",
+            "tf-idf | euclidean distance",
+            "tf-idf | dotproduct",
+            "average | cosine similarity",
+            "average | euclideanDistance",
+            "average | dotProduct",
+            "lstm | cosine similarity",
+            "lstm | euclideanDistance",
+            "lstm | dotProduct"
         ]
 
         # 3 X 3 plot

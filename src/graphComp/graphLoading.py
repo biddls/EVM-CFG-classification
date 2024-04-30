@@ -1,3 +1,4 @@
+from collections import Counter
 import numpy as np
 from numpy import typing as npt
 from CFG_reader import CFG_Reader
@@ -14,7 +15,8 @@ class graphLoader:
     pathToTypes: str
     pathToLabels: str
     addrLabels: dict[str, str]
-    
+    counts: Counter[tuple[int | tuple[int, int]]]
+
     tf_idf: npt.NDArray
     tf_idfVectors: npt.NDArray[np.float_]
     average: npt.NDArray
@@ -27,6 +29,7 @@ class graphLoader:
         CFGs: list[CFG_Reader],
         pathToTags: str,
         pathToLabels: str,
+        _counts: Counter[tuple[int | tuple[int, int]]] | None = None,
         _tf_idf: npt.NDArray | None = None,
         _average: npt.NDArray | None = None,
         _lstm: npt.NDArray | None = None,
@@ -36,6 +39,9 @@ class graphLoader:
         self.CFGs = CFGs
         self.pathToTypes = pathToTags
         self.pathToLabels = pathToLabels
+        if _counts is not None:
+            self.counts = _counts
+
         if _tf_idf is not None:
             self.tf_idf = _tf_idf
             self.tf_idfVectors_cosine_similarity_np = cosine_similarity_np(_tf_idf)
