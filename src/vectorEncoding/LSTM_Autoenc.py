@@ -23,7 +23,6 @@ if not torch.cuda.is_available():
 
 device = torch.device('cuda')
 
-# todo add chaching of pre computed models to simply re-run
 class Encoder(nn.Module):
     def __init__(self, n_features, embedding_dim):
         super(Encoder, self).__init__()
@@ -141,8 +140,6 @@ class LSTM_AutoEnc_Training:
             self.model.load_state_dict(torch.load(file[-1]))
             return list()
 
-        # todo: convert to batched training
-
         width = len(str(epochs_num))
         train_loss=0
         final_train_losses = list()
@@ -213,7 +210,6 @@ class LSTM_AutoEnc_Training:
         """
 
         weights = list(data.values())
-        # todo think about how i want to handle weights
         # print(f"Number of training examples: {np.sum(weights):,.0f}")
         # print(f"Number now compressed: {len(weights):,.0f}")
         # print(f"Compression ratio of: {100 * (1 - (len(weights) / np.sum(weights))):.2f}%")

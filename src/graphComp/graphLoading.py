@@ -5,6 +5,7 @@ from CFG_reader import CFG_Reader
 import pandas as pd
 import json
 from sklearn.metrics.pairwise import euclidean_distances
+from tqdm import tqdm
 
 
 class graphLoader:
@@ -33,30 +34,44 @@ class graphLoader:
         _tf_idf: npt.NDArray | None = None,
         _average: npt.NDArray | None = None,
         _lstm: npt.NDArray | None = None,
+        graphName: str = "graph.png"
     ) -> None:
 
         # Load in all data
         self.CFGs = CFGs
         self.pathToTypes = pathToTags
         self.pathToLabels = pathToLabels
+        self.graphName = graphName
         if _counts is not None:
             self.counts = _counts
 
         if _tf_idf is not None:
+            counter = tqdm(range(3), ncols=0, desc="Calculating TF-IDF similarities")  
             self.tf_idf = _tf_idf
             self.tf_idfVectors_cosine_similarity_np = cosine_similarity_np(_tf_idf)
+            counter.update(1)
             self.tf_idfVectors_euclideanDistance = euclideanDistance(_tf_idf)
+            counter.update(1)
             self.tf_idfVectors_dotProduct = dotProduct(_tf_idf)
+            counter.update(1)
         if _average is not None:
+            counter = tqdm(range(3), ncols=0, desc="Calculating Average similarities")  
             self.average = _average
             self.averageVectors_cosine_similarity_np = cosine_similarity_np(_average)
+            counter.update(1)
             self.averageVectors_euclideanDistance = euclideanDistance(_average)
+            counter.update(1)
             self.averageVectors_dotProduct = dotProduct(_average)
+            counter.update(1)
         if _lstm is not None:
+            counter = tqdm(range(3), ncols=0, desc="Calculating LSTM similarities")  
             self.lstm = _lstm
             self.lstmVectors_cosine_similarity_np = cosine_similarity_np(_lstm)
+            counter.update(1)
             self.lstmVectors_euclideanDistance = euclideanDistance(_lstm)
+            counter.update(1)
             self.lstmVectors_dotProduct = dotProduct(_lstm)
+            counter.update(1)
 
         # load in classes and labels
         self.loadClasses()

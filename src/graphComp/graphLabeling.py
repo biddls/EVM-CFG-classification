@@ -6,6 +6,9 @@ from matplotlib import pyplot as plt
 import numpy as np
 from numpy import typing as npt
 from graphComp.graphLoading import graphLoader
+from icecream import ic
+#todo: add label propogation
+
 
 class graphLabeling(graphLoader):
     def getGraphSimilarity(self, nodes1: list[int], nodes2: list[int]) -> npt.NDArray[np.float_]:
@@ -63,6 +66,12 @@ class graphLabeling(graphLoader):
             graph2 = self.CFGs[pair2]
             nodes1: list[int] = [x[1] for x in graph1.graph.nodes(data='extIndex')] # type: ignore
             nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')] # type: ignore
+            for i, node in enumerate(nodes1):
+                if not isinstance(node, int):
+                    ic(node, 1, "Nodes1")
+            for i, node in enumerate(nodes2):
+                if not isinstance(node, int):
+                    ic(node, 1, "Nodes2")
             simliaties = self.getGraphSimilarity(nodes1, nodes2)
             similarityMatrix[pair1, pair2] = simliaties
 
@@ -107,25 +116,18 @@ class graphLabeling(graphLoader):
                 # write the maximum to the cfg
                 if defiSim > nftSim and defiSim > erc20Sim:
                     predLabels.append("defi")
-                    # print(f"defi: {defiSim}")
                 elif nftSim > defiSim and nftSim > erc20Sim:
                     predLabels.append("nft")
-                    # print(f"nft: {nftSim}")
                 elif erc20Sim > defiSim and erc20Sim > nftSim:
                     predLabels.append("erc20")
-                    # print(f"erc20: {erc20Sim}")
-            # print(f"{len(trueLabels) = }, {len(predLabels) = }")
             confMatrix = confusion_matrix(trueLabels, predLabels, labels=["defi", "nft", "erc20"])
-            # print(confMatrix)
 
             disp = ConfusionMatrixDisplay(confMatrix, display_labels=["defi", "nft", "erc20"])
-            # if d == 8:
-            #     continue
             x, y = axisIndex[d]
             disp.plot(ax=axis[x, y], colorbar=False)
             axis[x, y].set_title(label)
 
-        fig.savefig(f'./matrix_of_confusion_matrix.png')
+        fig.savefig(f'./{self.graphName}')
 
         # make global prediction
         predLabels = list()
@@ -137,13 +139,10 @@ class graphLabeling(graphLoader):
             # write the maximum to the cfg
             if defiSim > nftSim and defiSim > erc20Sim:
                 predLabels.append("defi")
-                # print(f"defi: {defiSim}")
             elif nftSim > defiSim and nftSim > erc20Sim:
                 predLabels.append("nft")
-                # print(f"nft: {nftSim}")
             elif erc20Sim > defiSim and erc20Sim > nftSim:
                 predLabels.append("erc20")
-                # print(f"erc20: {erc20Sim}")
 
         confMatrix = confusion_matrix(trueLabels, predLabels, labels=["defi", "nft", "erc20"])
 

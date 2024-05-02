@@ -10,6 +10,7 @@ from CFG_reader import CFG_Reader
 from graphComp.graphLoading import graphLoader
 from graphComp.graphClassification import graphCompression
 from graphComp.graphLabeling import graphLabeling
+from icecream import ic
 
 
 def main(
@@ -40,25 +41,18 @@ def main(
 
     # loads in and pre processes the CFGs
     for cfg in loader:
-        # print(cfg)
         try:
             if cfg.addr not in labels:
                 continue
             cfg.load()
-            # count += 1
             cfgs.append(cfg)
             tokens = tokeniser.Tokeniser.preProcessing(cfg)
-            # print(f"{len(tokens) = }")
             temp_counts = tokeniser.Tokeniser.tokenise(tokens)
-            # print(f"{len(temp_counts) = }")
 
             _counts: Counter[tuple[int | tuple[int, int]]] = Counter(temp_counts)
             counts.update(_counts)
 
             cfg.gen_indexes(temp_counts, counts)
-            # else:
-            #     if count == max_cfgs:
-            #         break
 
         except KeyboardInterrupt:
             break
@@ -70,13 +64,13 @@ def main(
     tfIdfVectors = None
     if tf_idf:
         tfIdfVectors = TF_IDF(counts)()
-        print(f"{tfIdfVectors.shape = }")
+        ic(tfIdfVectors.shape)
 
     # Average
     averageVectors = None
     if average:
         averageVectors = Average(counts)()
-        print(f"{averageVectors.shape = }")
+        ic(averageVectors.shape)
 
     # LSTM autoencoder
     LSTMEncodings = None
@@ -102,7 +96,7 @@ def main(
 
         trainer = LSTM_AutoEnc_Training(counts, 172, count)
         LSTMEncodings = trainer.getEncodings()
-        print(f"{LSTMEncodings.shape = }")
+        ic(LSTMEncodings.shape)
 
     shapes = [
         tfIdfVectors.shape if tfIdfVectors is not None else None,
@@ -114,7 +108,7 @@ def main(
 
     if len(shapes) > 1:
         if all([shapes[0] == shape for shape in shapes]):
-            print("All shapes are equal")
+            ic("All shapes are equal")
         else:
             raise ValueError(f"Shapes are not equal: {shapes}")
 
@@ -126,7 +120,10 @@ def main(
         _counts=counts,
     ).compress()
 
-    exit(0)
+    for cfg in cfgs:
+        ic(cfg.addr, cfg.nodeCount(), cfg.edgeCount())
+
+    # exit(0)
 
     # graph labeling
     gc = graphLabeling(
@@ -137,6 +134,7 @@ def main(
         _counts=counts,
         _average=averageVectors,
         _lstm=LSTMEncodings,
+        graphName="matrix_of_confusion_matrix_shrunk.png"
     )
 
     gc.getGraphLabels()
@@ -153,7 +151,7 @@ Things to try:
 if __name__ == "__main__":
     main(
         tf_idf = True,
-        # average = True,
-        # lstm=True,
+        average = True,
+        lstm=True,
         # max_cfgs = 50
     )

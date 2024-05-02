@@ -82,7 +82,7 @@ class CFG_Reader:
                     continue
                 self.graph.add_edge(from_node, to_node)
 
-        self.graph = nx.freeze(self.graph)
+        # self.graph = nx.freeze(self.graph)
         self.indexToNode = {i: x for i, x in enumerate(self.graph.nodes)}
 
         # if self.addr == "0x0000000000007f150bd6f54c40a34d7c3d5e9f56":
