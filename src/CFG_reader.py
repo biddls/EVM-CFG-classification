@@ -4,6 +4,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from glob import glob
 from typing import Self
+from icecream import ic
 
 
 class CFG_Reader:
@@ -82,11 +83,8 @@ class CFG_Reader:
                     continue
                 self.graph.add_edge(from_node, to_node)
 
-        # self.graph = nx.freeze(self.graph)
-        self.indexToNode = {i: x for i, x in enumerate(self.graph.nodes)}
-
-        # if self.addr == "0x0000000000007f150bd6f54c40a34d7c3d5e9f56":
-        #     print(list(self.graph.nodes.data())[-20:])
+        self.indexToNode = {x: i for i, x in enumerate(self.graph.nodes)}
+        self.nodeToIndex = {i: x for i, x in enumerate(self.graph.nodes)}
 
     def drawGraph(self) -> None:
         if self.graph is None:
@@ -122,19 +120,30 @@ class CFG_Reader:
             self.generateGraph()
         return self.graph.nodes.data()
 
-    def addIndex(self, nodeIndex: int, index: int) -> None:
+    def setIndex(self, index: int, CFG_NodeIndex: int = -1, orderNodeIndex: int = -1) -> None:
         """
         Links the index of the node with the external index of the compressed link
         Parameters:
-        node: int
-            The node to add the index to
         index: int
             The external index to add to the node
+        CFG_NodeIndex: int
+            The index of the node in the CFG
+        orderNodeIndex: int
+            The index of the node in the order of the nodes
         """
+        if not((CFG_NodeIndex == -1) ^ (orderNodeIndex == -1)):
+            raise ValueError("One of them has to be -1")
+
         if not hasattr(self, 'graph'):
             self.generateGraph()
 
-        node = self.indexToNode[nodeIndex]
+        if CFG_NodeIndex != -1:
+            node = CFG_NodeIndex
+        elif orderNodeIndex != -1:
+            node = self.nodeToIndex[orderNodeIndex]
+        else:
+            raise ValueError("One of them has to be -1")
+
         self.graph.nodes[node]["extIndex"] = index
 
     def gen_indexes(
@@ -169,7 +178,7 @@ class CFG_Reader:
         globalIndes = list(map(lambda x: temp[x], tokens))
         # apply indexes
         for i, index in enumerate(globalIndes):
-            self.addIndex(i, index)
+            self.setIndex(index, orderNodeIndex=i)
 
     def __eq__(self, __value: Self) -> bool:
         if not isinstance(__value, CFG_Reader):
