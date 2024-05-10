@@ -71,6 +71,6 @@ def shrinkCounts(
             except KeyError as e:
                 print(f"KeyError: {node}")
                 raise e
-
+# 
     # remove them from the counts
     return cfgs, Counter(_countsSorted)

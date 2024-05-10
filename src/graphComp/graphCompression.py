@@ -12,9 +12,9 @@ from icecream import ic
 
 
 class graphCompression(graphLoader):
-    def compress(self) -> list[CFG_Reader]:
+    def compress(self, compress=True) -> tuple[list[CFG_Reader], npt.NDArray[np.float_]]:
         length = self.lstm.shape[0]
-        importance = np.zeros((3, length))
+        importance: npt.NDArray[np.float_] = np.zeros((3, length))
 
         counts: list[int] = [0, 0, 0]
         label: dict[str, int] = {"defi": 0, "nft": 1, "erc20": 2}
@@ -24,6 +24,7 @@ class graphCompression(graphLoader):
             if cfg.label == "unknown":
                 continue
             indexes: list[int] = [x[1] for x in cfg.graph.nodes(data='extIndex')] # type: ignore
+            indexes = [x for x in indexes if x != -1]
             indexes = list(set(indexes))
             contractType = label[cfg.label]
             counts[contractType] += 1
@@ -35,30 +36,19 @@ class graphCompression(graphLoader):
         importance = importance / np_counts
         # normalises for the number of occourances
         importance = importance / np.array(list(self.counts.values()))
-        # ic(len(self.CFGs))
-        # ic(importance.shape)
-        # ic(np.max(importance))
-        # ic(np.min(importance))
-        # ic(np.mean(importance))
-
-        # find the indexes that have the most dominance
-        # todo: graph this to show how distint the nodes are in type with few shared
-        # dominance = np.max(importance, axis=0) / np.sum(importance, axis=0)
-        # plt.hist(dominance)
-        # plt.show()
-        # ic(dominance.shape)
-        # ic(np.max(dominance))
-        # ic(np.min(dominance))
-        # ic(np.mean(dominance))
+        importance = importance / np.max(importance, axis=0)
+        if not compress:
+            return self.CFGs, importance
 
         # Get start and end nodes
         for i, cfg in enumerate(self.CFGs):
             if cfg.label == "unknown":
                 continue
             nodes: dict[int, int] = {k: v for k, v in cfg.graph.nodes(data='extIndex')} # type: ignore
+            # nodes = {k: v for k, v in nodes.items() if v != -1}
             endNodeIndex = list(cfg.graph.nodes)[-1]
             _label = label[cfg.label]
-            func = lambda x, _, __ : 1/importance[_label][nodes[x]]
+            func = lambda x, _, __ : (1/importance[_label, nodes[x]]) + np.sum(importance[:, nodes[x]])
 
             # find the shortest path from the start to the end node
             # this is the path that has the most impactful nodes
@@ -77,7 +67,7 @@ class graphCompression(graphLoader):
             cfg.graph.remove_nodes_from(set(cfg.graph.nodes) - subGraph)
             self.CFGs[i].graph = cfg.graph
 
-        return self.CFGs
+        return self.CFGs, importance
 
 """
 return {

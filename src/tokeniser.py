@@ -8,6 +8,7 @@ import collections
 import numpy.typing as npt
 from tqdm import tqdm
 from collections import Counter
+from random import shuffle
 import os
 
 
@@ -38,6 +39,7 @@ class CFG_Loader:
     # dict iter method
     def __iter__(self) -> Generator[CFG_Reader, None, None]:
         addrs = list(self.avaliable_cfgs.keys())
+        shuffle(addrs)
         for addr in addrs:
             yield self[addr]
 

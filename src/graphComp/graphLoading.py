@@ -6,6 +6,8 @@ import pandas as pd
 import json
 from sklearn.metrics.pairwise import euclidean_distances
 from tqdm import tqdm
+from matplotlib import pyplot as plt
+from icecream import ic
 
 
 class graphLoader:
@@ -19,11 +21,8 @@ class graphLoader:
     counts: Counter[tuple[int | tuple[int, int]]]
 
     tf_idf: npt.NDArray
-    tf_idfVectors: npt.NDArray[np.float_]
     average: npt.NDArray
-    averageVectors: npt.NDArray[np.float_]
     lstm: npt.NDArray
-    lstmVectors: npt.NDArray[np.float_]
 
     def __init__(
         self,
@@ -44,34 +43,41 @@ class graphLoader:
         self.graphName = graphName
         if _counts is not None:
             self.counts = _counts
-
+        
         if _tf_idf is not None:
-            counter = tqdm(range(3), ncols=0, desc="Calculating TF-IDF similarities")  
             self.tf_idf = _tf_idf
-            self.tf_idfVectors_cosine_similarity_np = cosine_similarity_np(_tf_idf)
-            counter.update(1)
-            self.tf_idfVectors_euclideanDistance = euclideanDistance(_tf_idf)
-            counter.update(1)
-            self.tf_idfVectors_dotProduct = dotProduct(_tf_idf)
-            counter.update(1)
         if _average is not None:
-            counter = tqdm(range(3), ncols=0, desc="Calculating Average similarities")  
             self.average = _average
-            self.averageVectors_cosine_similarity_np = cosine_similarity_np(_average)
-            counter.update(1)
-            self.averageVectors_euclideanDistance = euclideanDistance(_average)
-            counter.update(1)
-            self.averageVectors_dotProduct = dotProduct(_average)
-            counter.update(1)
         if _lstm is not None:
-            counter = tqdm(range(3), ncols=0, desc="Calculating LSTM similarities")  
             self.lstm = _lstm
-            self.lstmVectors_cosine_similarity_np = cosine_similarity_np(_lstm)
-            counter.update(1)
-            self.lstmVectors_euclideanDistance = euclideanDistance(_lstm)
-            counter.update(1)
-            self.lstmVectors_dotProduct = dotProduct(_lstm)
-            counter.update(1)
+
+        # if _tf_idf is not None:
+        #     counter = tqdm(range(3), ncols=0, desc="Calculating TF-IDF similarities")  
+        #     self.tf_idf = _tf_idf
+        #     self.tf_idfVectors_cosine_similarity_np = cosine_similarity_np(_tf_idf)
+        #     counter.update(1)
+        #     self.tf_idfVectors_euclideanDistance = euclideanDistance(_tf_idf)
+        #     counter.update(1)
+        #     self.tf_idfVectors_dotProduct = dotProduct(_tf_idf)
+        #     counter.update(1)
+        # if _average is not None:
+        #     counter = tqdm(range(3), ncols=0, desc="Calculating Average similarities")  
+        #     self.average = _average
+        #     self.averageVectors_cosine_similarity_np = cosine_similarity_np(_average)
+        #     counter.update(1)
+        #     self.averageVectors_euclideanDistance = euclideanDistance(_average)
+        #     counter.update(1)
+        #     self.averageVectors_dotProduct = dotProduct(_average)
+        #     counter.update(1)
+        # if _lstm is not None:
+        #     counter = tqdm(range(3), ncols=0, desc="Calculating LSTM similarities")  
+        #     self.lstm = _lstm
+        #     self.lstmVectors_cosine_similarity_np = cosine_similarity_np(_lstm)
+        #     counter.update(1)
+        #     self.lstmVectors_euclideanDistance = euclideanDistance(_lstm)
+        #     counter.update(1)
+        #     self.lstmVectors_dotProduct = dotProduct(_lstm)
+        #     counter.update(1)
 
         # load in classes and labels
         self.loadClasses()
@@ -108,17 +114,6 @@ class graphLoader:
                 tags[row['address']].append(row['tag'])
             else:
                 tags[row['address']] = [row['tag']]
-
-        # print(f"Number of unique addresses with tags: {len(tags)}")
-
-        # count = 0
-        # for _tags in tags.values():
-        #     for _tag in _tags:
-        #         if _tag in labels.keys():
-        #             count += 1
-        #             break
-
-        # print(f"Number of unique addresses with tags in labels: {count}")
 
         # label the address using the tags
         addrLabels: dict[str, str] = {}
@@ -173,44 +168,34 @@ class graphLoader:
                 CFG.label = self.addrLabels[addr]
             except KeyError:
                 CFG.label = "unknown"
+    
+    def _cosine_similarity_np(
+        self,
+        matrix1: npt.NDArray[np.int_],
+        matrix2: npt.NDArray[np.int_]
+    ) -> npt.NDArray[np.float_]:
+        matrix1 = matrix1.squeeze()
+        matrix2 = matrix2.squeeze()
+        dot_product: npt.NDArray[np.float_] = np.dot(matrix1, matrix2.T)
+        norm_matrix1: npt.NDArray[np.int_] = np.linalg.norm(matrix1, axis=1, keepdims=True)
+        norm_matrix2: npt.NDArray[np.int_] = np.linalg.norm(matrix2, axis=1, keepdims=True)
+        cosine_similarities = dot_product / (norm_matrix1 * norm_matrix2.T)
+        return cosine_similarities
 
-def cosine_similarity_np(matrix: npt.NDArray[np.float_]) -> npt.NDArray[np.float_]:
-    dot_product = np.dot(matrix, matrix.T)
-    norm_matrix = np.linalg.norm(matrix, axis=1, keepdims=True)
-    cosine_similarities = dot_product / (norm_matrix * norm_matrix.T)
-    # apply cutoff
-    # cosine_similarities = cosine_similarities > cutoff
-    return cosine_similarities
+    def _euclideanDistance(
+        self,
+        matrix1: npt.NDArray[np.int_],
+        matrix2: npt.NDArray[np.int_]
+    ) -> npt.NDArray[np.float_]:
+        matrix1 = matrix1.squeeze()
+        matrix2 = matrix2.squeeze()
+        return euclidean_distances(matrix1, matrix2) / matrix1.shape[1]
 
-def euclideanDistance(matrix: np.ndarray) -> np.ndarray:
-    """
-    Calculates the Euclidean distance between points in a matrix.
-
-    Parameters:
-    - matrix: A numpy array of shape (n, m) containing n points with m dimensions.
-
-    Returns:
-    - distances: A numpy array of shape (n, n) containing the pairwise Euclidean distances between points.
-    """
-    # Calculate squared distances
-    # print(matrix)
-    dist = euclidean_distances(matrix, squared=True) / matrix.shape[1]
-    # print(matrix.shape)
-    # exit(0)
-    return dist
-
-def dotProduct(matrix: np.ndarray) -> np.ndarray:
-        """
-        Calculates the dot product between points in a matrix.
-
-        Parameters:
-        - matrix: A numpy array of shape (n, m) containing n points with m dimensions.
-
-        Returns:
-        - distances: A numpy array of shape (n, n) containing the pairwise dot products between points.
-        """
-        # Calculate squared distances
-        dist = np.dot(matrix, matrix.T)
-        # print(matrix.shape)
-        # exit(0)
-        return dist / matrix.shape[1]
+    def _dotProduct(
+        self,
+        matrix1: npt.NDArray[np.int_],
+        matrix2: npt.NDArray[np.int_]
+    ) -> npt.NDArray[np.float_]:
+        matrix1 = matrix1.squeeze()
+        matrix2 = matrix2.squeeze()
+        return np.dot(matrix1, matrix2.T) / matrix1.shape[1]

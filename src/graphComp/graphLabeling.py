@@ -7,8 +7,7 @@ import numpy as np
 from numpy import typing as npt
 from graphComp.graphLoading import graphLoader
 from icecream import ic
-from typing import Literal
-#todo: add label propogation
+from typing import Literal, Callable
 
 
 class graphLabeling(graphLoader):
@@ -17,78 +16,102 @@ class graphLabeling(graphLoader):
         nodes1: list[int],
         nodes2: list[int],
         row: Literal["tf_idf", "average", "lstm", ""],
-        column: Literal["cosine_similarity_np", "euclideanDistance", "dotProduct", ""]
+        col: Literal["cosine_similarity_np", "euclideanDistance", "dotProduct", ""]
     ) -> npt.NDArray[np.float_]:
         """
         Get the similarity between two graphs
         """
-        if row == "" and column != "":
-            raise ValueError("You cannot spesify a column without a row")
+        # if row == "" and col != "":
+        #     raise ValueError("You cannot spesify a column without a row")
 
         # get the similarity between the nodes
-        indexMatrix = np.ix_(nodes1, nodes2)
-        if row == "" and column == "":
+        if row == "" and col == "":
             results = np.zeros((3, 3))
-            results[0,0] = self.getSimmilarityMatrix(self.tf_idfVectors_cosine_similarity_np, indexMatrix)
-            results[0,1] = self.getSimmilarityMatrix(self.tf_idfVectors_euclideanDistance, indexMatrix)
-            results[0,2] = self.getSimmilarityMatrix(self.tf_idfVectors_dotProduct, indexMatrix)
-            results[1,0] = self.getSimmilarityMatrix(self.averageVectors_cosine_similarity_np, indexMatrix)
-            results[1,1] = self.getSimmilarityMatrix(self.averageVectors_euclideanDistance, indexMatrix)
-            results[1,2] = self.getSimmilarityMatrix(self.averageVectors_dotProduct, indexMatrix)
-            results[2,0] = self.getSimmilarityMatrix(self.lstmVectors_cosine_similarity_np, indexMatrix)
-            results[2,1] = self.getSimmilarityMatrix(self.lstmVectors_euclideanDistance, indexMatrix)
-            results[2,2] = self.getSimmilarityMatrix(self.lstmVectors_dotProduct, indexMatrix)
-        elif column == "":
+            temp1tf_idf = self.tf_idf[nodes1]
+            temp2 = self.tf_idf[nodes2]
+            results[0,0] = self.getSimmilarityMatrix(self._cosine_similarity_np, (temp1tf_idf, temp2))
+            result = self.getSimmilarityMatrix(self._euclideanDistance, (temp1tf_idf, temp2))
+            results[0,1] = 1/result
+            results[0,2] = self.getSimmilarityMatrix(self._dotProduct, (temp1tf_idf, temp2))
+            temp1average = self.average[nodes1]
+            temp2 = self.average[nodes2]            
+            results[1,0] = self.getSimmilarityMatrix(self._cosine_similarity_np, (temp1average, temp2))
+            result = self.getSimmilarityMatrix(self._euclideanDistance, (temp1average, temp2))
+            results[1,1] = 1/result
+            results[1,2] = self.getSimmilarityMatrix(self._dotProduct, (temp1average, temp2))
+            temp1lstm = self.lstm[nodes1]
+            temp2 = self.lstm[nodes2]
+            results[2,0] = self.getSimmilarityMatrix(self._cosine_similarity_np, (temp1lstm, temp2))
+            result = self.getSimmilarityMatrix(self._euclideanDistance, (temp1lstm, temp2))
+            results[2,1] = 1/result
+            results[2,2] = self.getSimmilarityMatrix(self._dotProduct, (temp1lstm, temp2))
+        elif col == "":
             results = np.zeros((1, 3))
+            temp1 = eval(f"self.{row}")[nodes1]
+            temp2 = eval(f"self.{row}")[nodes2]
             for i, _col in enumerate(["cosine_similarity_np", "euclideanDistance", "dotProduct"]):
-                results[0, i] = self.getSimmilarityMatrix(eval(f"self.{row}Vectors_{_col}"), indexMatrix)
+                result  = self.getSimmilarityMatrix(eval(f"self._{_col}"), (temp1, temp2))
+                if _col == "euclideanDistance":
+                    result = 1/result
+                results[0, i] = result
+        elif row == "":
+            results = np.zeros((3, 1))
+            evalFunc = eval(f"self._{col}")
+            for i, _row in enumerate(["tf_idf", "average", "lstm"]):
+                temp1 = eval(f"self.{_row}")[nodes1]
+                temp2 = eval(f"self.{_row}")[nodes2]
+                result = self.getSimmilarityMatrix(evalFunc, (temp1, temp2))
+                if col == "euclideanDistance":
+                    result = 1/result
+                results[i, 0] = result
         else:
             results = np.zeros((1, 1))
-            results[0, 0] = self.getSimmilarityMatrix(eval(f"self.{row}Vectors_{column}"), indexMatrix)
+            temp1 = eval(f"self.{row}")[nodes1]
+            temp2 = eval(f"self.{row}")[nodes2]
+            results[0, 0] = self.getSimmilarityMatrix(eval(f"self._{col}"), (temp1, temp2))
         return results.flatten()
 
     def getSimmilarityMatrix(
         self,
-        similarityMatrix: npt.NDArray[np.float_],
-        pairs: tuple[npt.NDArray[np.int_], ...]
+        similarityMatrix: Callable[[npt.NDArray[np.int_], npt.NDArray[np.int_]], npt.NDArray[np.float_]],
+        pairs: tuple[npt.NDArray[np.int_], npt.NDArray[np.int_]]
     ) -> float:
-        return float(np.average(similarityMatrix.T[pairs]))
+        return float(np.average(similarityMatrix(*pairs)))
 
     def getGraphLabels(self):
         """
         generates the labels for the graphs
         """
-        pairs = combinations(range(len(self.CFGs)), 2)
-        lenPairs = int(factorial(len(self.CFGs))/factorial(len(self.CFGs)-2))
-        pairs = tqdm(pairs, desc="Generating the similiarity matrix", total=int(lenPairs/2), ncols=0)
+        labeledCFGs = [cfg for cfg in self.CFGs if cfg.label != "unknown"]
+        pairs = combinations(range(len(labeledCFGs)), 2)
+        lenPairs = int(factorial(len(labeledCFGs))/factorial(len(labeledCFGs)-2))
+        pairs = tqdm(
+            pairs,
+            desc="Generating the similiarity matrix",
+            total=int(lenPairs/2),
+            ncols=0,
+            mininterval=1)
 
-        similarityMatrix = np.identity(len(self.CFGs))
+        similarityMatrix = np.zeros((len(labeledCFGs), len(labeledCFGs)))
         similarityMatrix = np.tile(similarityMatrix[:, :, np.newaxis], (1, 1, 9))
 
         for pair1, pair2 in pairs:
-            graph1 = self.CFGs[pair1]
-            graph2 = self.CFGs[pair2]
+            graph1 = labeledCFGs[pair1]
+            graph2 = labeledCFGs[pair2]
             nodes1: list[int] = [x[1] for x in graph1.graph.nodes(data='extIndex')] # type: ignore
             nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')] # type: ignore
-            # for i, node in enumerate(nodes1):
-            #     if not isinstance(node, int):
-            #         ic(node, 1, "Nodes1")
-            # for i, node in enumerate(nodes2):
-            #     if not isinstance(node, int):
-            #         ic(node, 1, "Nodes2")
             simliaties = self.getGraphSimilarity(nodes1, nodes2, "", "")
             similarityMatrix[pair1, pair2] = simliaties
 
         similarityMatrix += np.rot90(np.fliplr(similarityMatrix))
 
-        labels = [cfg.label for cfg in self.CFGs]
-
+        labels = [cfg.label for cfg in labeledCFGs]
         defiIndces = [i for i, x in enumerate(labels) if x == "defi"]
         nftIndces = [i for i, x in enumerate(labels) if x == "nft"]
         erc20Indces = [i for i, x in enumerate(labels) if x == "erc20"]
 
         Indces = defiIndces + nftIndces + erc20Indces
-        trueLabels = [self.CFGs[i].label for i in Indces]
+        trueLabels = [labeledCFGs[i].label for i in Indces]
 
         labels = [
             "tf-idf | cosine similarity",
@@ -107,9 +130,9 @@ class graphLabeling(graphLoader):
         axisIndex = list()
         for x in range(3):
             for y in range(3):
-                axisIndex.append([x, y])
+                axisIndex.append([y, x])
 
-        predLookup = {0: "defi", 1: "nft", 2: "erc20"}
+        predLookup = ["defi", "nft", "erc20"]
         for d, label in enumerate(labels):
 
             predLabels = list()
@@ -121,9 +144,9 @@ class graphLabeling(graphLoader):
 
                 # write the maximum to the cfg
                 predLabels.append(predLookup[pred])
-            confMatrix = confusion_matrix(trueLabels, predLabels, labels=["defi", "nft", "erc20"])
+            confMatrix = confusion_matrix(trueLabels, predLabels, labels=predLookup)
 
-            disp = ConfusionMatrixDisplay(confMatrix, display_labels=["defi", "nft", "erc20"])
+            disp = ConfusionMatrixDisplay(confMatrix, display_labels=predLookup)
             x, y = axisIndex[d]
             disp.plot(ax=axis[x, y], colorbar=False)
             axis[x, y].set_title(label)
@@ -149,62 +172,100 @@ class graphLabeling(graphLoader):
         disp.plot()
         plt.savefig(f'confusion_matrix.png')
 
-    def propagateLabels(self):
+    def propagateLabelsV1(self):
         """
         Propogates the labels
         """
         # for cfg in self.CFGs:
         #     ic(cfg.label)
-        ic(len(self.CFGs))
+        # ic(len(self.CFGs))
         nftIndex = [i for i, cfg in enumerate(self.CFGs) if cfg.label == "nft"]
         erc20Index = [i for i, cfg in enumerate(self.CFGs) if cfg.label == "erc20"]
         defiIndex = [i for i, cfg in enumerate(self.CFGs) if cfg.label == "defi"]
-        unlabeledIndex = [i for i, cfg in enumerate(self.CFGs) if cfg.label == "unknown"]
-        ic(len(nftIndex), len(erc20Index), len(defiIndex), len(unlabeledIndex))
+        unlabeledIndex = [*nftIndex[-10:], *erc20Index[-10:], *defiIndex[-10:]]
+        nftIndex = nftIndex[:-10]
+        erc20Index = erc20Index[:-10]
+        defiIndex = defiIndex[:-10]
+        # ic(len(nftIndex), len(erc20Index), len(defiIndex), len(unlabeledIndex))
         # unlabeledIndex = tqdm(unlabeledIndex, desc="Propogating labels", ncols=0)
-        for cfg in unlabeledIndex:
-            graph1 = self.CFGs[cfg]
-            nodes1: list[int] = [x[1] for x in graph1.graph.nodes(data='extIndex')] # type: ignore
-            
-            # get the similarity between the nodes for the NFTs
-            nftSimliaties = list()
-            for nft in nftIndex:
-                graph2 = self.CFGs[nft]
-                nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')] # type: ignore
-                simliaties = self.getGraphSimilarity(nodes1, nodes2, "lstm", "cosine_similarity_np")
-                nftSimliaties.append(simliaties)
-            
-            # get the similarity between the nodes for the ERC20s
-            erc20Simliaties = list()
-            for erc20 in erc20Index:
-                graph2 = self.CFGs[erc20]
-                nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')] # type: ignore
-                simliaties = self.getGraphSimilarity(nodes1, nodes2, "lstm", "cosine_similarity_np")
-                erc20Simliaties.append(simliaties)
+        for row in ['']:#['tf_idf', 'average', 'lstm']:
+            for col in ['cosine_similarity_np', 'euclideanDistance', 'dotProduct']:
+                accuracy: list[bool] = list()
+                for cfg in unlabeledIndex:
+                    graph1 = self.CFGs[cfg]
+                    nodes1: list[int] = [x[1] for x in graph1.graph.nodes(data='extIndex')] # type: ignore
+                    nodes1 = [x for x in nodes1 if x != -1]
+                    # get the similarity between the nodes for the NFTs
+                    # row: Literal['tf_idf', 'average', 'lstm', ''] = 'lstm'
+                    # col: Literal['cosine_similarity_np', 'euclideanDistance', 'dotProduct', ''] = 'euclideanDistance'
 
-            # get the similarity between the nodes for the defi
-            defiSimliaties = list()
-            for defi in defiIndex:
-                graph2 = self.CFGs[defi]
-                nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')] # type: ignore
-                simliaties = self.getGraphSimilarity(nodes1, nodes2, "lstm", "cosine_similarity_np")
-                defiSimliaties.append(simliaties)
+                    nftSimliaties = list()
+                    for nft in nftIndex:
+                        graph2 = self.CFGs[nft]
+                        nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')] # type: ignore
+                        nodes2 = [x for x in nodes2 if x != -1]
+                        simliaties = self.getGraphSimilarity(nodes1, nodes2, row, col)
+                        nftSimliaties.append(simliaties)
 
-            nftSimliaties = nftSimliaties or [0]
-            erc20Simliaties = erc20Simliaties or [0]
-            defiSimliaties = defiSimliaties or [0]
+                    # get the similarity between the nodes for the ERC20s
+                    erc20Simliaties = list()
+                    for erc20 in erc20Index:
+                        graph2 = self.CFGs[erc20]
+                        nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')] # type: ignore
+                        nodes2 = [x for x in nodes2 if x != -1]
+                        simliaties = self.getGraphSimilarity(nodes1, nodes2, row, col)
+                        erc20Simliaties.append(simliaties)
 
-            preds = np.array([
-                np.average(nftSimliaties),
-                np.average(erc20Simliaties),
-                np.average(defiSimliaties)
-            ])
+                    # get the similarity between the nodes for the defi
+                    defiSimliaties = list()
+                    for defi in defiIndex:
+                        graph2 = self.CFGs[defi]
+                        nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')] # type: ignore
+                        nodes2 = [x for x in nodes2 if x != -1]
+                        simliaties = self.getGraphSimilarity(nodes1, nodes2, row, col)
+                        defiSimliaties.append(simliaties)
 
-            pred = np.argmax(preds)
-            ic(pred, preds)
-            self.CFGs[cfg].label = ["nft", "erc20", "defi"][pred]
+                    nftSimliaties = nftSimliaties or [0]
+                    erc20Simliaties = erc20Simliaties or [0]
+                    defiSimliaties = defiSimliaties or [0]
 
-        nftIndex = [i for i, cfg in enumerate(self.CFGs) if cfg.label == "nft"]
-        erc20Index = [i for i, cfg in enumerate(self.CFGs) if cfg.label == "erc20"]
-        defiIndex = [i for i, cfg in enumerate(self.CFGs) if cfg.label == "defi"]
+                    preds = np.array([
+                        np.average(nftSimliaties),
+                        np.average(erc20Simliaties),
+                        np.average(defiSimliaties)
+                    ])
+
+                    pred = np.argmax(preds)
+                    # ic(pred, preds)
+                    label = ["nft", "erc20", "defi"][pred]
+                    accuracy.append(label == self.CFGs[cfg].label)
+                    # self.CFGs[cfg].label = label
+
+                # nftIndex = [i for i, cfg in enumerate(self.CFGs) if cfg.label == "nft"]
+                # erc20Index = [i for i, cfg in enumerate(self.CFGs) if cfg.label == "erc20"]
+                # defiIndex = [i for i, cfg in enumerate(self.CFGs) if cfg.label == "defi"]
+                ic(np.average(accuracy), row, col)
+                # ic(len(nftIndex), len(erc20Index), len(defiIndex))
+
+    def propagateLabelsV2(self, nftIndex, erc20Index, defiIndex, importanceTable):
+        """
+        Propogates the labels
+        """
+        labels: tuple[str, str, str] = ("defi", "nft", "erc20")
+        indexs = defiIndex + nftIndex + erc20Index
         ic(len(nftIndex), len(erc20Index), len(defiIndex))
+        for i, cfg in enumerate(indexs):
+            graph = self.CFGs[cfg]
+            nodes: list[int] = [x[1] for x in graph.graph.nodes(data='extIndex')] # type: ignore
+            nodes = [x for x in nodes if x != -1]
+
+            similiartyTable = importanceTable[:, nodes]
+            similiartyTable = np.sum(similiartyTable, axis=1)
+
+            pred = np.argmax(similiartyTable)
+            # # ic(pred, preds)
+            predLabel = labels[pred]
+            label = labels[i//10]
+            ic(label, label == predLabel)
+            indexs[i] = label == predLabel
+            # accuracy.append(label == self.CFGs[cfg].label)

@@ -37,7 +37,7 @@ def main(
     del gc
 
     loader = tokeniser.CFG_Loader(exclusionList="./src/vectorEncoding/cache/conts/*.txt")
-    loader = tqdm(loader, desc="Loading and encoding CFGs", ncols=0)
+    # loader = tqdm(loader, desc="Loading and encoding CFGs", ncols=0)
 
     # loads in and pre processes the CFGs
     for cfg in loader:
@@ -62,52 +62,72 @@ def main(
             break
 
     # remove the long tail of vectors that are not used frequently
-    cfgs, counts = shrinkCounts(counts, cfgs, length=500)
+    # cfgs, counts = shrinkCounts(counts, cfgs, length=500)
 
-    print(f"Compression ratio of: {100 * (1 - (len(counts) / sum(list(counts.values())))):.2f}%")
+    # print(f"Compression ratio of: {100 * (1 - (len(counts) / sum(list(counts.values())))):.2f}%")
 
     tfIdfVectors = TF_IDF(counts)()
-    ic(tfIdfVectors.shape)
+    # ic(tfIdfVectors.shape)
 
     averageVectors = Average(counts)()
-    ic(averageVectors.shape)
+    # ic(averageVectors.shape)
 
-    LSTM_Encodings = LSTM_AutoEnc_Training(counts, lstmWidth, unlabelled_CFGs).getEncodings()
-    ic(LSTM_Encodings.shape)
+    LSTM_Encodings = LSTM_AutoEnc_Training(counts, lstmWidth, unlabelled_CFGs).getEncodings(prog=False)
+    # ic(LSTM_Encodings.shape)
 
-    cfgs = graphCompression(
+    cfgs = graphLoader(
+        cfgs,
+        "./addressTags.csv",
+        "./labels.json",
+    ).CFGs
+
+    cfgLabels = [x.label for x in cfgs]
+    nftIndex = list()
+    erc20Index = list()
+    defiIndex = list()
+    for i, label in enumerate(cfgLabels):
+        if label == "nft" and len(nftIndex) < 10:
+            nftIndex.append(i)
+            cfgs[i].label = "unknown"
+        elif label == "erc20" and len(erc20Index) < 10:
+            erc20Index.append(i)
+            cfgs[i].label = "unknown"
+        elif label == "defi" and len(defiIndex) < 10:
+            defiIndex.append(i)
+            cfgs[i].label = "unknown"
+    
+    # graph compression
+    cfgs, importanceTable = graphCompression(
         CFGs=cfgs,
         pathToTags="./addressTags.csv",
         pathToLabels="./labels.json",
         _lstm=LSTM_Encodings,
         _counts=counts,
-    ).compress()
+    ).compress(compress=False)
 
     # graph labeling
     gc = graphLabeling(
         CFGs=cfgs,
         pathToTags="./addressTags.csv",
         pathToLabels="./labels.json",
-        # _tf_idf=tfIdfVectors,
+        _tf_idf=tfIdfVectors,
         _counts=counts,
-        # _average=averageVectors,
+        _average=averageVectors,
         _lstm=LSTM_Encodings,
         graphName=graphName
     )
 
     # gc.getGraphLabels()
 
-    propagatedLabels = gc.propagateLabels()
+    # gc.propagateLabelsV1()
+    ic(len(nftIndex), len(erc20Index), len(defiIndex))
+
+    gc.propagateLabelsV2(nftIndex, erc20Index, defiIndex, importanceTable)
 
 
 if __name__ == "__main__":
-    # for i in [1, 2 ,4 , 8, 16, 32, 64, 128, 172, 256, 512]: # includes the width of the other vectors
-    for i in [32]: # includes the width of the other vectors
-        main(
-            f"matrix_of_confusion_matrix_shrunk_LSTM_Width {i}.png",
-            # tf_idf = True,
-            # average = True,
-            # lstm=True,
-            lstmWidth=i,
-            unlabelled_CFGs=1000
-        )
+    i = 172 # includes the width of the other vectors
+    main(
+        f"matrix_of_confusion_matrix_shrunk_LSTM_Width {i}.png",
+        lstmWidth=i,
+        unlabelled_CFGs=0)

@@ -230,13 +230,17 @@ class LSTM_AutoEnc_Training:
         return temp_data, list(np.ones_like(weights))
 
 
-    def getEncodings(self) -> npt.NDArray[np.float64]:
+    def getEncodings(self, prog=True) -> npt.NDArray[np.float64]:
         """
         Returns the encodings of the data
         """
         self.model.eval()
         encodings = list()
-        for sample in tqdm(self.data, desc="generating encodings", ncols=0):
+        if prog:
+            itter = tqdm(self.data, desc="generating encodings", ncols=0)
+        else:
+            itter = self.data
+        for sample in itter:
             # print(sample)
             # print(np.average(sample.cpu().detach().numpy()))
             # print(sample.shape)
