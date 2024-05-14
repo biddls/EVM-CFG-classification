@@ -36,7 +36,7 @@ class graphCompression(graphLoader):
         importance = importance / np_counts
         # normalises for the number of occourances
         importance = importance / np.array(list(self.counts.values()))
-        importance = importance / np.max(importance, axis=0)
+        # importance = importance / np.max(importance, axis=0)
         if not compress:
             return self.CFGs, importance
 
