@@ -1,5 +1,5 @@
 from tqdm import tqdm
-from itertools import permutations, combinations, product
+from itertools import combinations
 from math import factorial
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from matplotlib import pyplot as plt
@@ -9,7 +9,6 @@ from graphComp.graphLoading import graphLoader
 from icecream import ic
 from typing import Literal, Callable
 from collections import Counter
-
 
 
 class graphLabeling(graphLoader):
@@ -31,30 +30,30 @@ class graphLabeling(graphLoader):
             results = np.zeros((3, 3))
             temp1tf_idf = self.tf_idf[nodes1]
             temp2 = self.tf_idf[nodes2]
-            results[0,0] = self.getSimmilarityMatrix(self._cosine_similarity_np, (temp1tf_idf, temp2))
+            results[0, 0] = self.getSimmilarityMatrix(self._cosine_similarity_np, (temp1tf_idf, temp2))
             result = self.getSimmilarityMatrix(self._euclideanDistance, (temp1tf_idf, temp2))
-            results[0,1] = 1/result
-            results[0,2] = self.getSimmilarityMatrix(self._dotProduct, (temp1tf_idf, temp2))
+            results[0, 1] = 1 / result
+            results[0, 2] = self.getSimmilarityMatrix(self._dotProduct, (temp1tf_idf, temp2))
             temp1average = self.average[nodes1]
-            temp2 = self.average[nodes2]            
-            results[1,0] = self.getSimmilarityMatrix(self._cosine_similarity_np, (temp1average, temp2))
+            temp2 = self.average[nodes2]
+            results[1, 0] = self.getSimmilarityMatrix(self._cosine_similarity_np, (temp1average, temp2))
             result = self.getSimmilarityMatrix(self._euclideanDistance, (temp1average, temp2))
-            results[1,1] = 1/result
-            results[1,2] = self.getSimmilarityMatrix(self._dotProduct, (temp1average, temp2))
+            results[1, 1] = 1 / result
+            results[1, 2] = self.getSimmilarityMatrix(self._dotProduct, (temp1average, temp2))
             temp1lstm = self.lstm[nodes1]
             temp2 = self.lstm[nodes2]
-            results[2,0] = self.getSimmilarityMatrix(self._cosine_similarity_np, (temp1lstm, temp2))
+            results[2, 0] = self.getSimmilarityMatrix(self._cosine_similarity_np, (temp1lstm, temp2))
             result = self.getSimmilarityMatrix(self._euclideanDistance, (temp1lstm, temp2))
-            results[2,1] = 1/result
-            results[2,2] = self.getSimmilarityMatrix(self._dotProduct, (temp1lstm, temp2))
+            results[2, 1] = 1 / result
+            results[2, 2] = self.getSimmilarityMatrix(self._dotProduct, (temp1lstm, temp2))
         elif col == "":
             results = np.zeros((1, 3))
             temp1 = eval(f"self.{row}")[nodes1]
             temp2 = eval(f"self.{row}")[nodes2]
             for i, _col in enumerate(["cosine_similarity_np", "euclideanDistance", "dotProduct"]):
-                result  = self.getSimmilarityMatrix(eval(f"self._{_col}"), (temp1, temp2))
+                result = self.getSimmilarityMatrix(eval(f"self._{_col}"), (temp1, temp2))
                 if _col == "euclideanDistance":
-                    result = 1/result
+                    result = 1 / result
                 results[0, i] = result
         elif row == "":
             results = np.zeros((3, 1))
@@ -64,7 +63,7 @@ class graphLabeling(graphLoader):
                 temp2 = eval(f"self.{_row}")[nodes2]
                 result = self.getSimmilarityMatrix(evalFunc, (temp1, temp2))
                 if col == "euclideanDistance":
-                    result = 1/result
+                    result = 1 / result
                 results[i, 0] = result
         else:
             results = np.zeros((1, 1))
@@ -86,11 +85,11 @@ class graphLabeling(graphLoader):
         """
         labeledCFGs = [cfg for cfg in self.CFGs if cfg.label != "unknown"]
         pairs = combinations(range(len(labeledCFGs)), 2)
-        lenPairs = int(factorial(len(labeledCFGs))/factorial(len(labeledCFGs)-2))
+        lenPairs = int(factorial(len(labeledCFGs)) / factorial(len(labeledCFGs) - 2))
         pairs = tqdm(
             pairs,
             desc="Generating the similiarity matrix",
-            total=int(lenPairs/2),
+            total=int(lenPairs / 2),
             ncols=0,
             mininterval=1)
 
@@ -100,8 +99,8 @@ class graphLabeling(graphLoader):
         for pair1, pair2 in pairs:
             graph1 = labeledCFGs[pair1]
             graph2 = labeledCFGs[pair2]
-            nodes1: list[int] = [x[1] for x in graph1.graph.nodes(data='extIndex')] # type: ignore
-            nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')] # type: ignore
+            nodes1: list[int] = [x[1] for x in graph1.graph.nodes(data='extIndex')]  # type: ignore
+            nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')]  # type: ignore
             simliaties = self.getGraphSimilarity(nodes1, nodes2, "", "")
             similarityMatrix[pair1, pair2] = simliaties
 
@@ -139,9 +138,9 @@ class graphLabeling(graphLoader):
 
             predLabels = list()
             for i in Indces:
-                defiSim  = np.average(similarityMatrix[i, defiIndces, d])
-                nftSim  = np.average(similarityMatrix[i, nftIndces, d])
-                erc20Sim  = np.average(similarityMatrix[i, erc20Indces, d])
+                defiSim = np.average(similarityMatrix[i, defiIndces, d])
+                nftSim = np.average(similarityMatrix[i, nftIndces, d])
+                erc20Sim = np.average(similarityMatrix[i, erc20Indces, d])
                 pred = np.argmax([defiSim, nftSim, erc20Sim])
 
                 # write the maximum to the cfg
@@ -159,9 +158,9 @@ class graphLabeling(graphLoader):
         # make global prediction
         predLabels = list()
         for i in Indces:
-            defiSim  = np.average(similarityMatrix[i, defiIndces])
-            nftSim  = np.average(similarityMatrix[i, nftIndces])
-            erc20Sim  = np.average(similarityMatrix[i, erc20Indces])
+            defiSim = np.average(similarityMatrix[i, defiIndces])
+            nftSim = np.average(similarityMatrix[i, nftIndces])
+            erc20Sim = np.average(similarityMatrix[i, erc20Indces])
 
             pred = np.argmax([defiSim, nftSim, erc20Sim])
             # write the maximum to the cfg
@@ -172,7 +171,7 @@ class graphLabeling(graphLoader):
         disp = ConfusionMatrixDisplay(confMatrix, display_labels=["defi", "nft", "erc20"])
 
         disp.plot()
-        plt.savefig(f'confusion_matrix.png')
+        plt.savefig('confusion_matrix.png')
 
     def propagateLabelsV1(self):
         """
@@ -190,12 +189,12 @@ class graphLabeling(graphLoader):
         defiIndex = defiIndex[:-10]
         # ic(len(nftIndex), len(erc20Index), len(defiIndex), len(unlabeledIndex))
         # unlabeledIndex = tqdm(unlabeledIndex, desc="Propogating labels", ncols=0)
-        for row in ['']:#['tf_idf', 'average', 'lstm']:
+        for row in ['']:  # ['tf_idf', 'average', 'lstm']:
             for col in ['cosine_similarity_np', 'euclideanDistance', 'dotProduct']:
                 accuracy: list[bool] = list()
                 for cfg in unlabeledIndex:
                     graph1 = self.CFGs[cfg]
-                    nodes1: list[int] = [x[1] for x in graph1.graph.nodes(data='extIndex')] # type: ignore
+                    nodes1: list[int] = [x[1] for x in graph1.graph.nodes(data='extIndex')]  # type: ignore
                     nodes1 = [x for x in nodes1 if x != -1]
                     # get the similarity between the nodes for the NFTs
                     # row: Literal['tf_idf', 'average', 'lstm', ''] = 'lstm'
@@ -204,27 +203,27 @@ class graphLabeling(graphLoader):
                     nftSimliaties = list()
                     for nft in nftIndex:
                         graph2 = self.CFGs[nft]
-                        nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')] # type: ignore
+                        nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')]  # type: ignore
                         nodes2 = [x for x in nodes2 if x != -1]
-                        simliaties = self.getGraphSimilarity(nodes1, nodes2, row, col) # type: ignore
+                        simliaties = self.getGraphSimilarity(nodes1, nodes2, row, col)  # type: ignore
                         nftSimliaties.append(simliaties)
 
                     # get the similarity between the nodes for the ERC20s
                     erc20Simliaties = list()
                     for erc20 in erc20Index:
                         graph2 = self.CFGs[erc20]
-                        nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')] # type: ignore
+                        nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')]  # type: ignore
                         nodes2 = [x for x in nodes2 if x != -1]
-                        simliaties = self.getGraphSimilarity(nodes1, nodes2, row, col) # type: ignore
+                        simliaties = self.getGraphSimilarity(nodes1, nodes2, row, col)  # type: ignore
                         erc20Simliaties.append(simliaties)
 
                     # get the similarity between the nodes for the defi
                     defiSimliaties = list()
                     for defi in defiIndex:
                         graph2 = self.CFGs[defi]
-                        nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')] # type: ignore
+                        nodes2: list[int] = [x[1] for x in graph2.graph.nodes(data='extIndex')]  # type: ignore
                         nodes2 = [x for x in nodes2 if x != -1]
-                        simliaties = self.getGraphSimilarity(nodes1, nodes2, row, col) # type: ignore
+                        simliaties = self.getGraphSimilarity(nodes1, nodes2, row, col)  # type: ignore
                         defiSimliaties.append(simliaties)
 
                     nftSimliaties = nftSimliaties or [0]
@@ -249,7 +248,14 @@ class graphLabeling(graphLoader):
                 ic(np.average(accuracy), row, col)
                 # ic(len(nftIndex), len(erc20Index), len(defiIndex))
 
-    def getGrapgLabelsV2(self, nftIndex, erc20Index, defiIndex, importanceTable):
+    def getGrapgLabelsV2(
+        self,
+        nftIndex,
+        erc20Index,
+        defiIndex,
+        importanceTable,
+        display=False
+    ) -> npt.NDArray:
         """
         Propogates the labels
         """
@@ -260,7 +266,7 @@ class graphLabeling(graphLoader):
 
         for i, cfg in enumerate(indexs):
             graph = self.CFGs[cfg]
-            nodes: list[int] = [x[1] for x in graph.graph.nodes(data='extIndex')] # type: ignore
+            nodes: list[int] = [x[1] for x in graph.graph.nodes(data='extIndex')]  # type: ignore
             nodes = [x for x in nodes if x != -1]
 
             similiartyTable = importanceTable[:, nodes]
@@ -269,7 +275,7 @@ class graphLabeling(graphLoader):
             pred = np.argmax(similiartyTable)
             # # ic(pred, preds)
             predLabel = labels[pred]
-            label = labels[i//10]
+            label = labels[i // 10]
             # ic(label, label == predLabel)
             indexs[i] = label == predLabel
             trueLabels.append(label)
@@ -277,13 +283,15 @@ class graphLabeling(graphLoader):
 
         confMatrix = confusion_matrix(trueLabels, predLabels, labels=labels)
 
-        disp = ConfusionMatrixDisplay(confMatrix, display_labels=labels)
+        if display:
+            disp = ConfusionMatrixDisplay(confMatrix, display_labels=labels)
 
-        disp.plot()
-        plt.savefig(f'confusion_matrix.png')
+            disp.plot()
+            plt.savefig('confusion_matrix.png')
 
-        ic(np.average(indexs))
-        ic(np.average(indexs[:10]), np.average(indexs[10:20]), np.average(indexs[20:30]))
+            ic(np.average(indexs))
+            ic(np.average(indexs[:10]), np.average(indexs[10:20]), np.average(indexs[20:30]))
+        return confMatrix
 
     def propagateLabelsV2(self, importanceTable):
         """
@@ -292,8 +300,8 @@ class graphLabeling(graphLoader):
         labels: tuple[str, str, str] = ("defi", "nft", "erc20")
         predLabels = list()
         predGraphs = [x for x in self.CFGs if x.label == "unknown"]
-        for graph in predGraphs:
-            nodes: list[int] = [x[1] for x in graph.graph.nodes(data='extIndex')] # type: ignore
+        for graph in tqdm(predGraphs, desc="Propogating labels", ncols=0):
+            nodes: list[int] = [x[1] for x in graph.graph.nodes(data='extIndex')]  # type: ignore
             nodes = [x for x in nodes if x != -1]
 
             similiartyTable = importanceTable[:, nodes]
@@ -304,5 +312,5 @@ class graphLabeling(graphLoader):
             predLabels.append(predLabel)
 
         ic(Counter(predLabels))
-        # trueLabels = [cfg.label for cfg in self.CFGs]
-        # ic(Counter(trueLabels))
+        trueLabels = [cfg.label for cfg in self.CFGs]
+        ic(Counter(trueLabels))

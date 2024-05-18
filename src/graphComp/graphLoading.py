@@ -5,9 +5,9 @@ from CFG_reader import CFG_Reader
 import pandas as pd
 import json
 from sklearn.metrics.pairwise import euclidean_distances
-from tqdm import tqdm
-from matplotlib import pyplot as plt
-from icecream import ic
+# from tqdm import tqdm
+# from matplotlib import pyplot as plt
+# from icecream import ic
 
 
 class graphLoader:
@@ -43,7 +43,7 @@ class graphLoader:
         self.graphName = graphName
         if _counts is not None:
             self.counts = _counts
-        
+
         if _tf_idf is not None:
             self.tf_idf = _tf_idf
         if _average is not None:
@@ -52,7 +52,7 @@ class graphLoader:
             self.lstm = _lstm
 
         # if _tf_idf is not None:
-        #     counter = tqdm(range(3), ncols=0, desc="Calculating TF-IDF similarities")  
+        #     counter = tqdm(range(3), ncols=0, desc="Calculating TF-IDF similarities")
         #     self.tf_idf = _tf_idf
         #     self.tf_idfVectors_cosine_similarity_np = cosine_similarity_np(_tf_idf)
         #     counter.update(1)
@@ -61,7 +61,7 @@ class graphLoader:
         #     self.tf_idfVectors_dotProduct = dotProduct(_tf_idf)
         #     counter.update(1)
         # if _average is not None:
-        #     counter = tqdm(range(3), ncols=0, desc="Calculating Average similarities")  
+        #     counter = tqdm(range(3), ncols=0, desc="Calculating Average similarities")
         #     self.average = _average
         #     self.averageVectors_cosine_similarity_np = cosine_similarity_np(_average)
         #     counter.update(1)
@@ -70,7 +70,7 @@ class graphLoader:
         #     self.averageVectors_dotProduct = dotProduct(_average)
         #     counter.update(1)
         # if _lstm is not None:
-        #     counter = tqdm(range(3), ncols=0, desc="Calculating LSTM similarities")  
+        #     counter = tqdm(range(3), ncols=0, desc="Calculating LSTM similarities")
         #     self.lstm = _lstm
         #     self.lstmVectors_cosine_similarity_np = cosine_similarity_np(_lstm)
         #     counter.update(1)
@@ -168,7 +168,7 @@ class graphLoader:
                 CFG.label = self.addrLabels[addr]
             except KeyError:
                 CFG.label = "unknown"
-    
+
     def _cosine_similarity_np(
         self,
         matrix1: npt.NDArray[np.int_],

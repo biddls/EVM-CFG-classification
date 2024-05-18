@@ -2,3 +2,5 @@
 exclude =
     **/__pycache__,
     .venv
+max-line-length=120
+ignore = E501, E731

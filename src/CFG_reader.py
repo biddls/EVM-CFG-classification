@@ -4,7 +4,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from glob import glob
 from typing import Self
-from icecream import ic
+# from icecream import ic
 
 
 class CFG_Reader:
@@ -34,7 +34,7 @@ class CFG_Reader:
         # splits the opcodes into a list of opcodes
         parsedOpcodes: list[str] = [
             node["parsedOpcodes"].split("\n") for node in nodes
-            ]
+        ]
         # cleans the opcodes
         self.parsedOpcodes = list()
         for i in range(len(parsedOpcodes)):
@@ -42,7 +42,7 @@ class CFG_Reader:
                 opcode.split(" ", maxsplit=1)[1] for opcode in parsedOpcodes[i]
             ]
             self.parsedOpcodes.append(temp)
-        
+
         # if self.addr == "0x0000000000007f150bd6f54c40a34d7c3d5e9f56":
         #     print(self.parsedOpcodes[-13:])
 
@@ -61,7 +61,9 @@ class CFG_Reader:
         self.graph = nx.DiGraph()
 
         if len(self.parsedOpcodes) != len(self.data["runtimeCfg"]["nodes"]):
-            raise ValueError("The number of parsed opcodes does not match the number of nodes in the CFG")
+            raise ValueError(
+                "The number of parsed opcodes does not match the \
+                number of nodes in the CFG")
 
         # Add nodes
         for index, node in enumerate(self.data["runtimeCfg"]["nodes"]):
@@ -120,9 +122,15 @@ class CFG_Reader:
             self.generateGraph()
         return self.graph.nodes.data()
 
-    def setIndex(self, index: int, CFG_NodeIndex: int = -1, orderNodeIndex: int = -1) -> None:
+    def setIndex(
+        self,
+        index: int,
+        CFG_NodeIndex: int = -1,
+        orderNodeIndex: int = -1
+    ) -> None:
         """
-        Links the index of the node with the external index of the compressed link
+        Links the index of the node with the
+        external index of the compressed link
         Parameters:
         index: int
             The external index to add to the node
@@ -131,7 +139,7 @@ class CFG_Reader:
         orderNodeIndex: int
             The index of the node in the order of the nodes
         """
-        if not((CFG_NodeIndex == -1) ^ (orderNodeIndex == -1)):
+        if not ((CFG_NodeIndex == -1) ^ (orderNodeIndex == -1)):
             raise ValueError("One of them has to be -1")
 
         if not hasattr(self, 'graph'):
@@ -149,10 +157,12 @@ class CFG_Reader:
     def gen_indexes(
         self,
         tokens: list[tuple[int | tuple[int, int]]],
-        counts: Counter[tuple[int | tuple[int, int]]]):
+        counts: Counter[tuple[int | tuple[int, int]]]
+    ):
         """
         Given the tokens and the counts, generate the indexes for the graph
-        To allow referencing of the index of the nodes to the main list of tokens
+        To allow referencing of the index of the nodes
+        to the main list of tokens
         Parameters:
         tokens: list[tuple[int | tuple[int, int]]]
             The tokens to be indexed
@@ -164,7 +174,9 @@ class CFG_Reader:
         if len(tokens) != len(self.parsedOpcodes):
             print(len(tokens), len(self.parsedOpcodes))
             print(self.hasInvalidOpcodes())
-            raise ValueError("The number of tokens does not match the number of nodes in the CFG")
+            raise ValueError(
+                "The number of tokens does not \
+                match the number of nodes in the CFG")
 
         # for each node in the CFG
         temp = {x: i for i, x in enumerate(counts.keys())}
@@ -190,6 +202,7 @@ class CFG_Reader:
         Set the label of the CFG
         """
         self.label = label
+
 
 if __name__ == "__main__":
     from tqdm import tqdm

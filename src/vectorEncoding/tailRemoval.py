@@ -6,13 +6,14 @@ This requires the mapping between the
 """
 from CFG_reader import CFG_Reader
 from collections import Counter
-from icecream import ic
+# from icecream import ic
+
 
 def shrinkCounts(
     counts: Counter[tuple[int | tuple[int, int]]],
     cfgs: list[CFG_Reader],
     length: int = 5000
-    ) -> tuple[list[CFG_Reader], Counter[tuple[int | tuple[int, int]]]]:
+) -> tuple[list[CFG_Reader], Counter[tuple[int | tuple[int, int]]]]:
     """
     Parameters
     ----------
@@ -60,7 +61,7 @@ def shrinkCounts(
     # remove them from the graphs
     # update the indexes in the graphs
     for cfg in cfgs:
-        oldMapping: list[tuple[int, int]] = cfg.graph.nodes(data='extIndex') # type: ignore
+        oldMapping: list[tuple[int, int]] = cfg.graph.nodes(data='extIndex')  # type: ignore
         # tuple[nodeIndex, externalIndex]
         for node in oldMapping:
             try:
@@ -71,6 +72,6 @@ def shrinkCounts(
             except KeyError as e:
                 print(f"KeyError: {node}")
                 raise e
-# 
+
     # remove them from the counts
     return cfgs, Counter(_countsSorted)

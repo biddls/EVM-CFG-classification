@@ -23,6 +23,7 @@ if not torch.cuda.is_available():
 
 device = torch.device('cuda')
 
+
 class Encoder(nn.Module):
     def __init__(self, n_features, embedding_dim):
         super(Encoder, self).__init__()
@@ -59,16 +60,16 @@ class Decoder(nn.Module):
         self.input_dim = n_features
         self.hidden_dim, self.n_features = 2 * input_dim, n_features
         self.rnn1 = nn.LSTM(
-        input_size=input_dim,
-        hidden_size=self.hidden_dim,
-        num_layers=1,
-        batch_first=True
+            input_size=input_dim,
+            hidden_size=self.hidden_dim,
+            num_layers=1,
+            batch_first=True
         )
         self.rnn2 = nn.LSTM(
-        input_size=self.hidden_dim,
-        hidden_size=self.hidden_dim,
-        num_layers=1,
-        batch_first=True
+            input_size=self.hidden_dim,
+            hidden_size=self.hidden_dim,
+            num_layers=1,
+            batch_first=True
         )
         self.output_layer = nn.Linear(self.hidden_dim, n_features)
 
@@ -106,22 +107,21 @@ class LSTM_AutoEnc_Training:
     def __init__(self, data: Counter[tuple[int | tuple[int, int]]], embedding_dim: int, CFGs: int):
         # print(f"Size of data: {len(data)}")
         self.embedding_dim = embedding_dim
-        
+
         path = f"./src/vectorEncoding/cache/checkpointsLSTMAutoenc/width{self.embedding_dim}/"
         if not os.path.exists(path):
             os.makedirs(path)
 
         tempData, self.weights = self.findWeights(data, CFGs)
-        del data # its alot so, good to free up
+        del data  # its alot so, good to free up
 
         self.data: list[torch.Tensor] = [torch.Tensor(x).to(device) for x in tempData]
 
         width = self.data[0].shape[1]
 
         self.model = LSTMAE(width, embedding_dim).to(device)
-        self.optimizer = torch.optim.RMSprop(self.model.parameters(), lr=0.01) #, momentum=0.9)
+        self.optimizer = torch.optim.RMSprop(self.model.parameters(), lr=0.01)
         self.criterion = nn.MSELoss()
-
 
     def trainEnc(self, epochs_num: int, checkpoints: bool = False, progress: bool = False) -> list[float]:
         """
@@ -141,7 +141,7 @@ class LSTM_AutoEnc_Training:
             return list()
 
         width = len(str(epochs_num))
-        train_loss=0
+        train_loss = 0
         final_train_losses = list()
         # Training mode
         self.model.train()
@@ -172,7 +172,7 @@ class LSTM_AutoEnc_Training:
                 train_loss.backward()
                 self.optimizer.step()
                 train_losses.append(train_loss.item())
-                if len(train_losses)%500 == 0 and len(train_losses) > 0:
+                if len(train_losses) % 500 == 0 and len(train_losses) > 0:
                     loopTrain.set_description(f"Epoch {epoch: {width}d}/{epochs_num} loss: {np.mean(train_losses[-500:]):.8f}")
 
             train_loss = np.mean(train_losses)
@@ -183,7 +183,7 @@ class LSTM_AutoEnc_Training:
 
             # check for early stopping
             if len(final_train_losses) > history:
-                backAv = sum(final_train_losses[-history:-1])/(history-1)
+                backAv = sum(final_train_losses[-history:-1]) / (history - 1)
                 if backAv * .99 < final_train_losses[-1]:
                     torch.save(self.model.state_dict(), f"./src/vectorEncoding/cache/checkpointsLSTMAutoenc/width{self.embedding_dim}/LSTM_Autoenc_FINAL{epoch+1}of{epochs_num}.pt")
                     print(f"Early stopping at epoch {epoch}")
@@ -194,16 +194,23 @@ class LSTM_AutoEnc_Training:
             # checkpointing
             if (epoch % 5 == 0 and epoch != 1) and checkpoints:
                 # saves the model every 10 epochs
-                torch.save(self.model.state_dict(), f"./src/vectorEncoding/cache/checkpointsLSTMAutoenc/width{self.embedding_dim}/LSTM_Autoenc{epoch}of{epochs_num}.pt")
+                torch.save(
+                    self.model.state_dict(),
+                    f"./src/vectorEncoding/cache/checkpointsLSTMAutoenc/width{self.embedding_dim}/LSTM_Autoenc{epoch}of{epochs_num}.pt")
             final_train_losses.append(float(train_loss))
 
         else:
-            torch.save(self.model.state_dict(), f"./src/vectorEncoding/cache/checkpointsLSTMAutoenc/width{self.embedding_dim}/LSTM_Autoenc_FINAL{epoch+1}of{epochs_num}.pt")
+            torch.save(
+                self.model.state_dict(),
+                f"./src/vectorEncoding/cache/checkpointsLSTMAutoenc/width{self.embedding_dim}/LSTM_Autoenc_FINAL{epoch+1}of{epochs_num}.pt")
 
         return final_train_losses
 
-
-    def findWeights(self, data: Counter[tuple[int | tuple[int, int]]], CFGs: int) -> tuple[list[npt.NDArray[np.bool_]], list[float]]:
+    def findWeights(
+        self,
+        data: Counter[tuple[int | tuple[int, int]]],
+        CFGs: int
+    ) -> tuple[list[npt.NDArray[np.bool_]], list[float]]:
         """
         Finds the weights of the data
         This is like a basic frequency count
@@ -213,8 +220,8 @@ class LSTM_AutoEnc_Training:
         # print(f"Number of training examples: {np.sum(weights):,.0f}")
         # print(f"Number now compressed: {len(weights):,.0f}")
         # print(f"Compression ratio of: {100 * (1 - (len(weights) / np.sum(weights))):.2f}%")
-        
-        weights = np.array(weights) # / CFGs
+
+        weights = np.array(weights)
         # add e to every element
         # weights = weights + np.e - 1 + (1 - (1 / CFGs))
         # # take the natural log of every element
@@ -224,11 +231,10 @@ class LSTM_AutoEnc_Training:
         # weights = [float(x) for x in weights]
 
         temp_data = list(data.keys())
-        temp_data = map(lambda x : Tokeniser.vectoriseNode(list(x)), temp_data)
+        temp_data = map(lambda x: Tokeniser.vectoriseNode(list(x)), temp_data)
         temp_data = list(temp_data)
 
         return temp_data, list(np.ones_like(weights))
-
 
     def getEncodings(self, prog=True) -> npt.NDArray[np.float64]:
         """
