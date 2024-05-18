@@ -3,6 +3,7 @@ import numpy as np
 import numpy.typing as npt
 from tokeniser import Tokeniser
 
+
 class Average:
     data: list[npt.NDArray[np.bool_]]
     width: int
@@ -11,13 +12,11 @@ class Average:
         """
         Shape of the data:
         first level is the list of cfgs (documents)
-        The second level is the list of nodes 
+        The second level is the list of nodes
         The third level is the vector representation of the node
         """
-        
         temp = list(data.keys())
-        vectorise = lambda x: Tokeniser.vectoriseNode(x)
-        temp = list(map(vectorise, list(temp)))
+        temp = list(map(Tokeniser.vectoriseNode, list(temp)))  # type: ignore
         self.data = temp
         self.width = self.data[0].shape[1]
 

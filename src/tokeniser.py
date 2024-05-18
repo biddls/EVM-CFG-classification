@@ -6,8 +6,9 @@ from dataclasses import dataclass, field
 from avaliableOpCodes import AvaliableOpCodes, specialTokens
 import collections
 import numpy.typing as npt
-from tqdm import tqdm
-from collections import Counter
+# from tqdm import tqdm
+# from collections import Counter
+from random import shuffle
 import os
 
 
@@ -38,6 +39,7 @@ class CFG_Loader:
     # dict iter method
     def __iter__(self) -> Generator[CFG_Reader, None, None]:
         addrs = list(self.avaliable_cfgs.keys())
+        shuffle(addrs)
         for addr in addrs:
             yield self[addr]
 
@@ -88,7 +90,7 @@ class Tokeniser:
                     nodeTokens.append(opcode)
             tokens.append(nodeTokens)
         tokens.append(["EXIT BLOCK"])
-        
+
         if len(tokens) != startLen:
             raise ValueError("The number of parsed opcodes does not match the number of nodes in the CFG")
         return tokens
@@ -108,7 +110,7 @@ class Tokeniser:
             temp = Tokeniser.oneHotEncodeNode(temp)
             # temp = Tokeniser.vectoriseNode(temp)
             temp = tuple(temp)
-            vectors.append(temp) # type: ignore
+            vectors.append(temp)  # type: ignore
 
         return vectors
 
@@ -163,7 +165,8 @@ class Tokeniser:
         numbersAssigned = 0
 
         for key in sorted(
-            frequency.keys(), key=lambda item: item[1], reverse=True):
+            frequency.keys(), key=lambda item: item[1], reverse=True
+        ):
             shortKey = key[2:]
             # <ZERO>
             if set(shortKey) == {"0"}:
@@ -192,7 +195,7 @@ class Tokeniser:
         return byteCodes
 
     @staticmethod
-    def oneHotEncodeNode(tokens: list[str | tuple[str, str]]) -> list[int|tuple[int, int]]:
+    def oneHotEncodeNode(tokens: list[str | tuple[str, str]]) -> list[int | tuple[int, int]]:
         """
         One hot encodes the tokens into their index
         """

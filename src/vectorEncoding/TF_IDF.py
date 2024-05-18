@@ -3,26 +3,25 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 from tokeniser import Tokeniser
-from tqdm import tqdm
+# from tqdm import tqdm
 
 
 class TF_IDF:
     data: list[npt.NDArray[np.bool_]]
-    counts : list[int]
+    counts: list[int]
     width: int
-
 
     def __init__(self, data: Counter[tuple[int | tuple[int, int]]]):
         """
         Shape of the data:
         first level is the list of cfgs (documents)
-        The second level is the list of nodes 
+        The second level is the list of nodes
         The third level is the vector representation of the node
         """
 
         temp = list(data.keys())
-        vectorise = lambda x: Tokeniser.vectoriseNode(x)
-        temp = list(map(vectorise, list(temp)))
+        # vectorise = lambda x: Tokeniser.vectoriseNode(x)
+        temp = list(map(Tokeniser.vectoriseNode, list(temp)))  # type: ignore
         self.data = temp
         self.counts = list(data.values())
         self.width = self.data[0].shape[1]
@@ -47,7 +46,7 @@ class TF_IDF:
         for i, document in enumerate(self.data):
             length = len(document)
             document = np.array(document)
-            # sums the values down each column 
+            # sums the values down each column
             # divides by the number of words in the document
             tf[i] = document.sum(axis=0) / length
         return tf
